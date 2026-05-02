@@ -65,7 +65,7 @@ jobs:
         working-directory: collectool-backend
         env:
           CORS_ALLOWED_ORIGINS: ${{ vars.DEV_CORS_ALLOWED_ORIGINS }}
-          SEED_INITIAL_DATA: "true"
+          SEED_INITIAL_DATA: 'true'
 ```
 
 Production deployment:
@@ -94,7 +94,7 @@ jobs:
         working-directory: collectool-backend
         env:
           CORS_ALLOWED_ORIGINS: ${{ vars.PROD_CORS_ALLOWED_ORIGINS }}
-          SEED_INITIAL_DATA: "false"
+          SEED_INITIAL_DATA: 'false'
 ```
 
 Use OIDC-based AWS credentials in CI instead of long-lived AWS keys.

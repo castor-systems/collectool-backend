@@ -1,0 +1,13 @@
+{
+  "entity": {
+    "id": "artist-bts",
+    "type": "artist",
+    "name": "BTS",
+    "status": "active",
+    "parents": [],
+    "tags": ["kpop", "artist:bts"],
+    "description": "K-pop group.",
+    "updated_at": 1777636800000,
+    "created_at": 1777550400000
+  }
+}

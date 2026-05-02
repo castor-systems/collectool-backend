@@ -1,0 +1,7 @@
+{
+  "user": {
+    "email": "admin@collectool.local",
+    "name": "Collectool Admin",
+    "groups": ["collectool-admins"]
+  }
+}

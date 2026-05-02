@@ -1,0 +1,58 @@
+{
+  "flow": {
+    "id": "flow-kpop-draft",
+    "category_id": "kpop",
+    "version": 1,
+    "status": "DRAFT",
+    "root_question_ids": ["artist"],
+    "question_groups": {},
+    "conditions": [],
+    "questions": [
+      {
+        "id": "artist",
+        "type": "SINGLE_SELECT",
+        "label": "Which artist are you collecting?",
+        "helper_text": "Pick the artist for this collection.",
+        "required": true,
+        "allow_all": true,
+        "options": [
+          {
+            "id": "bts",
+            "label": "BTS",
+            "value": "bts",
+            "entity_id": "artist-bts",
+            "tags": ["artist:bts"]
+          }
+        ]
+      }
+    ],
+    "notes": "Initial K-pop draft",
+    "updated_at": 1777636800000,
+    "created_at": 1777550400000
+  },
+  "visible_questions": [
+    {
+      "id": "artist",
+      "type": "SINGLE_SELECT",
+      "label": "Which artist are you collecting?",
+      "helper_text": "Pick the artist for this collection.",
+      "required": true,
+      "allow_all": true,
+      "options": [
+        {
+          "id": "bts",
+          "label": "BTS",
+          "value": "bts",
+          "entity_id": "artist-bts",
+          "tags": ["artist:bts"]
+        }
+      ]
+    }
+  ],
+  "next_question": null,
+  "answers": {
+    "artist": "bts"
+  },
+  "tags": ["artist:bts"],
+  "is_complete": true
+}

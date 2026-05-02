@@ -1,7 +1,16 @@
 'use strict';
 
-const VALID_QUESTION_TYPES = new Set(['SINGLE_SELECT', 'MULTI_SELECT', 'TOGGLE']);
-const VALID_OPERATORS = new Set(['INCLUDES', 'EQUALS', 'NOT_INCLUDES', 'IS_SET']);
+const VALID_QUESTION_TYPES = new Set([
+  'SINGLE_SELECT',
+  'MULTI_SELECT',
+  'TOGGLE',
+]);
+const VALID_OPERATORS = new Set([
+  'INCLUDES',
+  'EQUALS',
+  'NOT_INCLUDES',
+  'IS_SET',
+]);
 
 function unique(values) {
   const seen = new Set();
@@ -18,7 +27,9 @@ function unique(values) {
 }
 
 function questionMap(flow) {
-  return new Map((flow.questions || []).map((question) => [question.id, question]));
+  return new Map(
+    (flow.questions || []).map((question) => [question.id, question])
+  );
 }
 
 function getAnswerValues(answer) {
@@ -26,7 +37,9 @@ function getAnswerValues(answer) {
     return [];
   }
 
-  return Array.isArray(answer) ? answer.filter((value) => value !== '') : [answer];
+  return Array.isArray(answer)
+    ? answer.filter((value) => value !== '')
+    : [answer];
 }
 
 function isConditionMet(rule, answers) {
@@ -78,7 +91,10 @@ function computeVisibleQuestionIds(flow, answers) {
       }
 
       for (const action of rule.actions || []) {
-        if (action.type !== 'SHOW_QUESTION_GROUP' || shownGroups.has(action.target)) {
+        if (
+          action.type !== 'SHOW_QUESTION_GROUP' ||
+          shownGroups.has(action.target)
+        ) {
           continue;
         }
 
@@ -114,8 +130,12 @@ function normalizeAnswers(flow, visibleQuestionIds, answers) {
       continue;
     }
 
-    const validValues = new Set((question.options || []).map((option) => option.value));
-    const values = getAnswerValues(answer).filter((value) => validValues.has(value));
+    const validValues = new Set(
+      (question.options || []).map((option) => option.value)
+    );
+    const values = getAnswerValues(answer).filter((value) =>
+      validValues.has(value)
+    );
 
     if (values.length === 0) {
       continue;
@@ -160,16 +180,26 @@ function answerSatisfiesQuestion(question, answer) {
 
 function buildRuntimeResponse(flow, answers) {
   const firstVisibleIds = computeVisibleQuestionIds(flow, answers || {});
-  const normalizedAnswers = normalizeAnswers(flow, firstVisibleIds, answers || {});
+  const normalizedAnswers = normalizeAnswers(
+    flow,
+    firstVisibleIds,
+    answers || {}
+  );
   const visibleQuestionIds = computeVisibleQuestionIds(flow, normalizedAnswers);
-  const finalAnswers = normalizeAnswers(flow, visibleQuestionIds, normalizedAnswers);
+  const finalAnswers = normalizeAnswers(
+    flow,
+    visibleQuestionIds,
+    normalizedAnswers
+  );
   const questionsById = questionMap(flow);
   const visibleQuestions = visibleQuestionIds
     .map((questionId) => questionsById.get(questionId))
     .filter(Boolean);
   const nextQuestion =
-    visibleQuestions.find((question) => !answerSatisfiesQuestion(question, finalAnswers[question.id])) ||
-    null;
+    visibleQuestions.find(
+      (question) =>
+        !answerSatisfiesQuestion(question, finalAnswers[question.id])
+    ) || null;
 
   return {
     flow,
@@ -204,12 +234,16 @@ function validateFlow(flow, entities) {
     const optionValues = new Set();
     for (const option of question.options || []) {
       if (optionValues.has(option.value)) {
-        errors.push(`Duplicate option value ${option.value} in question ${question.id}`);
+        errors.push(
+          `Duplicate option value ${option.value} in question ${question.id}`
+        );
       }
       optionValues.add(option.value);
 
       if (option.entity_id && !entityIds.has(option.entity_id)) {
-        errors.push(`Option ${option.id} references missing entity ${option.entity_id}`);
+        errors.push(
+          `Option ${option.id} references missing entity ${option.entity_id}`
+        );
       }
     }
   }
@@ -223,7 +257,9 @@ function validateFlow(flow, entities) {
   for (const [groupId, group] of Object.entries(flow.question_groups || {})) {
     for (const questionId of group.questions || []) {
       if (!ids.has(questionId)) {
-        errors.push(`Question group ${groupId} references missing question ${questionId}`);
+        errors.push(
+          `Question group ${groupId} references missing question ${questionId}`
+        );
       }
     }
   }
@@ -231,11 +267,15 @@ function validateFlow(flow, entities) {
   for (const rule of flow.conditions || []) {
     const condition = rule.condition || {};
     if (!ids.has(condition.question_id)) {
-      errors.push(`Condition ${rule.id} references missing question ${condition.question_id}`);
+      errors.push(
+        `Condition ${rule.id} references missing question ${condition.question_id}`
+      );
     }
 
     if (!VALID_OPERATORS.has(condition.operator)) {
-      errors.push(`Condition ${rule.id} uses invalid operator ${condition.operator}`);
+      errors.push(
+        `Condition ${rule.id} uses invalid operator ${condition.operator}`
+      );
     }
 
     for (const action of rule.actions || []) {
@@ -244,7 +284,9 @@ function validateFlow(flow, entities) {
       }
 
       if (!(flow.question_groups || {})[action.target]) {
-        errors.push(`Condition ${rule.id} references missing question group ${action.target}`);
+        errors.push(
+          `Condition ${rule.id} references missing question group ${action.target}`
+        );
       }
     }
   }

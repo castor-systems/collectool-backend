@@ -1,0 +1,782 @@
+openapi: 3.1.0
+info:
+  title: Collectool Backend API
+  version: 0.1.0
+  summary: AWS-first backend API for collectool-admin and public Collection Builder runtime.
+  license:
+    name: Proprietary
+    identifier: UNLICENSED
+  description: >
+    This contract documents the HTTP API implemented by the Lambda handler and deployed through AWS CDK.
+    The backend repository is the source of truth for infrastructure and API contracts.
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com
+    description: AWS API Gateway HTTP API endpoint emitted by the CDK ApiUrl output.
+    variables:
+      apiId:
+        default: example
+        description: API Gateway id.
+      region:
+        default: us-east-1
+        description: AWS region.
+tags:
+  - name: Health
+    description: Operational health checks.
+  - name: Admin Session
+    description: Cognito-backed admin identity endpoints.
+  - name: Admin Users
+    description: Application Cognito user search, metrics, and state management.
+  - name: Admin Collection Builder
+    description: Administrative Collection Builder categories, entities, flows, previews, and publishing.
+  - name: Public Runtime
+    description: Public published Collection Builder runtime endpoints.
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check API health.
+      security: []
+      responses:
+        '200':
+          description: API is reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, environment]
+                additionalProperties: false
+                properties:
+                  ok:
+                    type: boolean
+                  environment:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/session:
+    get:
+      tags: [Admin Session]
+      operationId: getAdminSession
+      summary: Resolve the current admin session.
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Current admin user.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/adminSession'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/users:
+    get:
+      tags: [Admin Users]
+      operationId: listAdminUsers
+      summary: List application Cognito users.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PaginationToken'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            enum: [active, inactive]
+        - name: verified
+          in: query
+          schema:
+            enum: ['true', 'false']
+      responses:
+        '200':
+          description: Paginated users.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/usersResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/metrics/users:
+    get:
+      tags: [Admin Users]
+      operationId: getUserMetrics
+      summary: Build dashboard metrics from application Cognito users.
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: User metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/metricsResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/users/{username}/{action}:
+    post:
+      tags: [Admin Users]
+      operationId: updateAdminUserState
+      summary: Enable, disable, unlock, ban, or unban an application user.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: action
+          in: path
+          required: true
+          schema:
+            enum: [enable, disable, unlock, ban, unban]
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                additionalProperties: false
+                properties:
+                  user:
+                    $ref: '../schemas/api-contracts.schema.json#/$defs/user'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/bootstrap:
+    get:
+      tags: [Admin Collection Builder]
+      operationId: getCollectionBuilderBootstrap
+      summary: Load categories, entities, and flow summaries in one response.
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Collection Builder bootstrap payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories:
+    get:
+      tags: [Admin Collection Builder]
+      operationId: listCollectionCategories
+      summary: List Collection Builder categories including drafts.
+      security:
+        - adminBearerAuth: []
+      responses:
+        '200':
+          description: Categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+    post:
+      tags: [Admin Collection Builder]
+      operationId: createCollectionCategory
+      summary: Create a Collection Builder category and initial draft flow.
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Created category.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/categoryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories/{categoryId}:
+    put:
+      tags: [Admin Collection Builder]
+      operationId: updateCollectionCategory
+      summary: Update a Collection Builder category.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Updated category.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/categoryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories/{categoryId}/archive:
+    post:
+      tags: [Admin Collection Builder]
+      operationId: archiveCollectionCategory
+      summary: Archive a Collection Builder category.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Archived category.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/categoryResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/entities:
+    get:
+      tags: [Admin Collection Builder]
+      operationId: listCollectionEntities
+      summary: List Collection Builder entities.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityListResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+    post:
+      tags: [Admin Collection Builder]
+      operationId: createCollectionEntity
+      summary: Create a Collection Builder entity.
+      security:
+        - adminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEntityRequest'
+      responses:
+        '201':
+          description: Created entity.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/entityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/entities/{entityId}:
+    put:
+      tags: [Admin Collection Builder]
+      operationId: updateCollectionEntity
+      summary: Update a Collection Builder entity.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEntityRequest'
+      responses:
+        '200':
+          description: Updated entity.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/entityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories/{categoryId}/flow:
+    get:
+      tags: [Admin Collection Builder]
+      operationId: getCollectionFlowSummary
+      summary: Get draft, latest published flow, and history for a category.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Flow summary.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/flowSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+    put:
+      tags: [Admin Collection Builder]
+      operationId: saveCollectionDraftFlow
+      summary: Save a draft flow for a category.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveFlowRequest'
+      responses:
+        '200':
+          description: Saved draft flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories/{categoryId}/preview:
+    post:
+      tags: [Admin Collection Builder]
+      operationId: previewCollectionFlow
+      summary: Run runtime preview against draft or latest published flow.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuntimeRequest'
+      responses:
+        '200':
+          description: Runtime preview response.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/runtimeResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /admin/collection-builder/categories/{categoryId}/publish:
+    post:
+      tags: [Admin Collection Builder]
+      operationId: publishCollectionFlow
+      summary: Publish the current draft flow.
+      security:
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishFlowRequest'
+      responses:
+        '200':
+          description: Published flow and updated category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishFlowResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /collection-builder/categories:
+    get:
+      tags: [Public Runtime]
+      operationId: listPublicCollectionCategories
+      summary: List active published Collection Builder categories.
+      security: []
+      responses:
+        '200':
+          description: Active categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /collection-builder/categories/{categoryId}/flow:
+    get:
+      tags: [Public Runtime]
+      operationId: getPublicCollectionFlow
+      summary: Get the latest published flow for an active category.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Latest published flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+  /collection-builder/categories/{categoryId}/runtime:
+    post:
+      tags: [Public Runtime]
+      operationId: runPublicCollectionRuntime
+      summary: Evaluate answers against the latest published flow for an active category.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicRuntimeRequest'
+      responses:
+        '200':
+          description: Runtime response.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/api-contracts.schema.json#/$defs/runtimeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito access token from the admin user pool created by this backend stack.
+
+  parameters:
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 60
+        default: 25
+    PaginationToken:
+      name: paginationToken
+      in: query
+      schema:
+        type: string
+
+  responses:
+    ValidationError:
+      description: Invalid request payload or invalid Collection Builder contract.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/error'
+    Forbidden:
+      description: The caller is not in an allowed admin Cognito group.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/error'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/error'
+    Conflict:
+      description: Resource id already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/error'
+    UnexpectedError:
+      description: Unexpected server error. The response includes requestId for 5xx errors.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/error'
+
+  schemas:
+    CategoryListResponse:
+      type: object
+      required: [categories]
+      additionalProperties: false
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/category'
+    EntityListResponse:
+      type: object
+      required: [entities]
+      additionalProperties: false
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/entity'
+    BootstrapResponse:
+      type: object
+      required: [categories, entities, flows]
+      additionalProperties: false
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/category'
+        entities:
+          type: array
+          items:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/entity'
+        flows:
+          type: object
+          additionalProperties:
+            $ref: '../schemas/api-contracts.schema.json#/$defs/flowSummary'
+    FlowResponse:
+      type: object
+      required: [flow]
+      additionalProperties: false
+      properties:
+        flow:
+          $ref: '../schemas/api-contracts.schema.json#/$defs/flow'
+    PublishFlowResponse:
+      type: object
+      required: [flow, category]
+      additionalProperties: false
+      properties:
+        flow:
+          $ref: '../schemas/api-contracts.schema.json#/$defs/flow'
+        category:
+          $ref: '../schemas/api-contracts.schema.json#/$defs/category'
+    CreateCategoryRequest:
+      type: object
+      required: [id, name]
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          enum: [ACTIVE, DRAFT, COMING_SOON, ARCHIVED]
+        progress_mode:
+          enum: [FULL, WISHLIST, NONE]
+    UpdateCategoryRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          enum: [ACTIVE, DRAFT, COMING_SOON, ARCHIVED]
+        progress_mode:
+          enum: [FULL, WISHLIST, NONE]
+    CreateEntityRequest:
+      type: object
+      required: [id, type, name]
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        parents:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+    UpdateEntityRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        parents:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+    SaveFlowRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        version:
+          type: number
+        root_question_ids:
+          type: array
+          items:
+            type: string
+        question_groups:
+          type: object
+        conditions:
+          type: array
+        questions:
+          type: array
+        notes:
+          type: string
+    RuntimeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        answers:
+          $ref: '#/components/schemas/Answers'
+        use_draft:
+          type: boolean
+    PublicRuntimeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        answers:
+          $ref: '#/components/schemas/Answers'
+    PublishFlowRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        notes:
+          type: string
+        category_status:
+          enum: [ACTIVE, DRAFT, COMING_SOON, ARCHIVED]
+    Answers:
+      type: object
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string

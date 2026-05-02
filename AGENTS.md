@@ -1,0 +1,107 @@
+# Collectool Backend Agent Guide
+
+Use this file as the local operating manual for automatic agents working in `collectool-backend`.
+
+## Project Role
+
+`collectool-backend` owns the AWS infrastructure and backend API for Collectool. It defines Cognito, API Gateway, Lambda, DynamoDB, deployment behavior, and the admin/public Collection Builder runtime.
+
+## Required Baseline
+
+Before finishing broad code or infrastructure changes, run:
+
+```bash
+npm run check
+```
+
+For narrow changes, run the smallest relevant subset and report what was skipped:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm run openapi:lint
+npm test
+npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false
+```
+
+## Package Manager And Runtime
+
+Use npm only.
+
+- Keep `package-lock.json`.
+- Do not add `pnpm-lock.yaml`, `yarn.lock`, or Bun lockfiles.
+- Install dependencies with `npm install` or `npm ci`.
+- Use Node 24 for local tooling and Lambda runtime.
+
+## Deploy Safety
+
+Do not deploy or mutate AWS resources unless the user explicitly asks for it.
+
+- `npm run deploy:dev` is allowed only when requested.
+- `npm run deploy:prod` requires an explicit production deploy request.
+- Prefer `npm run diff:dev` / `npm run diff:prod` before any deploy.
+- Never commit credentials, local AWS profiles, `cdk.out`, or generated asset bundles.
+
+## Environment Variables
+
+When adding a new CDK/deploy-time variable, update `.env.example`, `README.md`, and `docs/DEPLOYMENT.md`.
+
+Current non-secret inputs:
+
+- `DEPLOY_ENV`
+- `ALLOWED_ADMIN_GROUPS`
+- `CORS_ALLOWED_ORIGINS`
+- `SEED_INITIAL_DATA`
+
+## Code Organization
+
+Keep business logic and AWS integration separate.
+
+- Pure runtime logic belongs in `src/runtime.js` or other pure modules.
+- HTTP response helpers belong in `src/http/`.
+- AWS persistence belongs in `src/repositories/`.
+- Cognito/user/metrics behavior belongs in `src/services/`.
+- `src/handler.js` should stay as the Lambda composition root and request dispatcher.
+- CDK stack code belongs under `lib/`; split constructs when one stack file becomes hard to review.
+
+## Testing
+
+Use:
+
+- Jest for unit tests and CDK assertions.
+- AWS SDK mocks for Lambda handler/integration tests.
+- Contract fixtures under `test/fixtures/`.
+- JSON schemas under `schemas/` for backend/frontend contract validation.
+- OpenAPI 3.1 contract under `docs/openapi.yaml`, validated with Redocly CLI.
+
+Do not make tests call real AWS services.
+
+## Documentation
+
+Update docs in the same change when behavior changes:
+
+- API contract changes: `docs/API_CONTRACTS.md` and `schemas/`.
+- HTTP route changes: `docs/openapi.yaml`.
+- Infra/deploy changes: `docs/ARCHITECTURE.md` and `docs/DEPLOYMENT.md`.
+- Tooling/workflow changes: `docs/AGENT_DEVELOPMENT_TOOLING.md` and this file.
+
+## Adding A Feature
+
+1. Define or update the API contract, OpenAPI path, and schema first.
+2. Add or update fixtures.
+3. Implement pure logic in a service/runtime module.
+4. Add repository methods for persistence.
+5. Wire the route in the handler/router.
+6. Grant the minimum IAM permissions in CDK.
+7. Add unit and handler integration tests.
+8. Run the relevant checks and update docs.
+
+## Git And PRs
+
+Use Conventional Commits, for example:
+
+- `feat: add metrics snapshots table`
+- `fix: reject draft public runtime flows`
+- `test: add handler integration tests`
+- `chore: configure backend ci`

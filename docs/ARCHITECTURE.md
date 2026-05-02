@@ -13,7 +13,7 @@ The backend is designed for AWS-first operation, low idle cost, and compatibilit
 - `AWS::Cognito::UserPoolGroup`: `admin` and `collectool-admins` groups.
 - `AWS::Cognito::UserPool`: app user pool for main Collectool users.
 - `AWS::Cognito::UserPoolClient`: app SPA/API auth client.
-- `AWS::Lambda::Function`: single Node.js 20 ARM64 handler for admin and public runtime routes.
+- `AWS::Lambda::Function`: single Node.js 24 ARM64 handler for admin and public runtime routes.
 - `AWS::DynamoDB::Table`: three on-demand tables:
   - `collectool-{env}-collection-categories`
   - `collectool-{env}-collection-entities`

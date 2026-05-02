@@ -6,6 +6,12 @@ All admin errors return:
 { "message": "Error details" }
 ```
 
+Unexpected `5xx` errors also include a `requestId` that matches Lambda structured logs:
+
+```json
+{ "message": "Unexpected server error", "requestId": "..." }
+```
+
 All `/admin/*` endpoints require:
 
 ```text
@@ -13,6 +19,12 @@ Authorization: Bearer <cognito_access_token>
 ```
 
 The token must come from the admin Cognito user pool created by the backend stack and must belong to one of the configured admin groups.
+
+The executable OpenAPI contract lives in [`docs/openapi.yaml`](openapi.yaml) and is validated by:
+
+```bash
+npm run openapi:lint
+```
 
 ## Admin Session
 
@@ -79,6 +91,10 @@ Only categories with `status: "ACTIVE"` and a published flow are visible through
 
 ## Contract Notes
 
+- Executable backend/admin schemas live in `schemas/api-contracts.schema.json`.
+- OpenAPI 3.1 documentation lives in `docs/openapi.yaml` and references the JSON schemas where practical.
+- Backend fixtures live in `test/fixtures/*.json` and are validated by `test/contracts.test.js`.
+- The fixtures were aligned against `collectool-admin/test/fixtures` at the time this tooling pass was implemented.
 - Category status: `ACTIVE`, `DRAFT`, `COMING_SOON`, `ARCHIVED`.
 - Flow status: `DRAFT`, `PUBLISHED`, `ARCHIVED`.
 - Entity status is stored as sent by admin, with standard values `ACTIVE`, `DRAFT`, `ARCHIVED`.

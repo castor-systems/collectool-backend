@@ -1,24 +1,57 @@
 {
   "name": "collectool-backend",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=10"
+  },
   "bin": {
     "collectool-backend": "bin/collectool-backend.js"
   },
   "scripts": {
     "build": "echo \"The build step is not required when using JavaScript!\" && exit 0",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run openapi:lint && npm test && npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false",
+    "audit:deps": "npm audit --audit-level=high",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
     "cdk": "cdk",
+    "diff:dev": "cdk diff -c environment=dev",
+    "diff:prod": "cdk diff -c environment=prod",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "openapi:bundle": "redocly bundle docs/openapi.yaml --output /tmp/collectool-openapi.yaml",
+    "openapi:lint": "redocly lint docs/openapi.yaml",
     "synth": "cdk synth",
     "synth:dev": "cdk synth -c environment=dev",
     "synth:prod": "cdk synth -c environment=prod",
     "deploy:dev": "cdk deploy -c environment=dev",
     "deploy:prod": "cdk deploy -c environment=prod",
-    "test": "jest"
+    "security:iac": "cdk synth -c environment=dev -c securityChecks=true -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "@eslint/js": "^10.0.1",
+    "@redocly/cli": "^2.18.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.0",
+    "ajv": "^8.20.0",
     "aws-cdk": "2.1119.0",
-    "jest": "^30"
+    "aws-sdk-client-mock": "^4.1.0",
+    "cdk-nag": "^2.38.2",
+    "conventional-changelog": "^7.2.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "jest": "^30",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1041.0",
+    "@aws-sdk/client-dynamodb": "^3.1041.0",
+    "@aws-sdk/lib-dynamodb": "^3.1041.0",
     "aws-cdk-lib": "^2.248.0",
     "constructs": "^10.5.0"
   }

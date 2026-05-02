@@ -1,0 +1,36 @@
+{
+  "kpis": {
+    "newUsersLastHour": 2,
+    "newUsersLast24Hours": 18,
+    "newUsersLast7Days": 104,
+    "totalRegistered": 921
+  },
+  "statusSummary": [{ "label": "Active", "value": 900 }],
+  "verificationSummary": [{ "label": "Verified", "value": 850 }],
+  "recentSignups": [
+    {
+      "username": "collector-one",
+      "name": "Collector One",
+      "email": "collector.one@example.com",
+      "createdAt": "2026-05-01T12:00:00.000Z"
+    }
+  ],
+  "recentlyUpdatedUsers": [
+    {
+      "username": "collector-two",
+      "name": "Collector Two",
+      "email": "collector.two@example.com",
+      "status": "active",
+      "lastUpdatedAt": "2026-05-01T13:00:00.000Z"
+    }
+  ],
+  "hourlyChart": [
+    {
+      "hour": "12:00",
+      "timestamp": "2026-05-01T12:00:00.000Z",
+      "users": 2
+    }
+  ],
+  "dailyChart": [{ "day": "Fri", "date": "2026-05-01", "users": 18 }],
+  "generatedAt": "2026-05-01T14:00:00.000Z"
+}

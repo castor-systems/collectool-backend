@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://collectool.local/schemas/api-contracts.schema.json",
+  "$defs": {
+    "timestamp": {
+      "type": "number"
+    },
+    "error": {
+      "type": "object",
+      "required": ["message"],
+      "additionalProperties": false,
+      "properties": {
+        "message": { "type": "string" },
+        "requestId": { "type": "string" }
+      }
+    },
+    "adminSession": {
+      "type": "object",
+      "required": ["user"],
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "type": "object",
+          "required": ["email", "name", "groups"],
+          "additionalProperties": false,
+          "properties": {
+            "email": { "type": "string" },
+            "name": { "type": "string" },
+            "groups": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "user": {
+      "type": "object",
+      "required": [
+        "id",
+        "username",
+        "name",
+        "email",
+        "verified",
+        "status",
+        "enabled",
+        "cognitoStatus",
+        "createdAt",
+        "lastUpdatedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "status": { "enum": ["active", "inactive"] },
+        "enabled": { "type": "boolean" },
+        "cognitoStatus": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastUpdatedAt": { "type": "string" }
+      }
+    },
+    "usersResponse": {
+      "type": "object",
+      "required": ["users"],
+      "additionalProperties": false,
+      "properties": {
+        "users": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/user" }
+        },
+        "nextToken": { "type": "string" }
+      }
+    },
+    "metricsResponse": {
+      "type": "object",
+      "required": [
+        "kpis",
+        "statusSummary",
+        "verificationSummary",
+        "recentSignups",
+        "recentlyUpdatedUsers",
+        "hourlyChart",
+        "dailyChart",
+        "generatedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kpis": {
+          "type": "object",
+          "required": [
+            "newUsersLastHour",
+            "newUsersLast24Hours",
+            "newUsersLast7Days",
+            "totalRegistered"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "newUsersLastHour": { "type": "number" },
+            "newUsersLast24Hours": { "type": "number" },
+            "newUsersLast7Days": { "type": "number" },
+            "totalRegistered": { "type": "number" }
+          }
+        },
+        "statusSummary": { "$ref": "#/$defs/labelValueList" },
+        "verificationSummary": { "$ref": "#/$defs/labelValueList" },
+        "recentSignups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["username", "name", "email", "createdAt"],
+            "additionalProperties": false,
+            "properties": {
+              "username": { "type": "string" },
+              "name": { "type": "string" },
+              "email": { "type": "string" },
+              "createdAt": { "type": "string" }
+            }
+          }
+        },
+        "recentlyUpdatedUsers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "username",
+              "name",
+              "email",
+              "status",
+              "lastUpdatedAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "username": { "type": "string" },
+              "name": { "type": "string" },
+              "email": { "type": "string" },
+              "status": { "type": "string" },
+              "lastUpdatedAt": { "type": "string" }
+            }
+          }
+        },
+        "hourlyChart": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["hour", "timestamp", "users"],
+            "additionalProperties": false,
+            "properties": {
+              "hour": { "type": "string" },
+              "timestamp": { "type": "string" },
+              "users": { "type": "number" }
+            }
+          }
+        },
+        "dailyChart": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["day", "date", "users"],
+            "additionalProperties": false,
+            "properties": {
+              "day": { "type": "string" },
+              "date": { "type": "string" },
+              "users": { "type": "number" }
+            }
+          }
+        },
+        "generatedAt": { "type": "string" }
+      }
+    },
+    "labelValueList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string" },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "description",
+        "status",
+        "current_version_id",
+        "progress_mode",
+        "published_version",
+        "draft_version",
+        "updated_at",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": {
+          "enum": ["ACTIVE", "DRAFT", "COMING_SOON", "ARCHIVED"]
+        },
+        "current_version_id": { "type": "string" },
+        "progress_mode": { "enum": ["FULL", "WISHLIST", "NONE"] },
+        "published_version": { "type": ["number", "null"] },
+        "draft_version": { "type": "number" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "categoryResponse": {
+      "type": "object",
+      "required": ["category"],
+      "additionalProperties": false,
+      "properties": {
+        "category": { "$ref": "#/$defs/category" }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "status",
+        "parents",
+        "tags",
+        "description",
+        "updated_at",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "parents": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "entityResponse": {
+      "type": "object",
+      "required": ["entity"],
+      "additionalProperties": false,
+      "properties": {
+        "entity": { "$ref": "#/$defs/entity" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": [
+        "id",
+        "category_id",
+        "version",
+        "status",
+        "root_question_ids",
+        "question_groups",
+        "conditions",
+        "questions"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "category_id": { "type": "string" },
+        "version": { "type": "number" },
+        "status": { "enum": ["DRAFT", "PUBLISHED", "ARCHIVED"] },
+        "root_question_ids": { "type": "array", "items": { "type": "string" } },
+        "question_groups": { "type": "object" },
+        "conditions": { "type": "array" },
+        "questions": { "type": "array" },
+        "notes": { "type": "string" },
+        "published_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "flowSummary": {
+      "type": "object",
+      "required": ["draft", "published", "history"],
+      "additionalProperties": false,
+      "properties": {
+        "draft": { "anyOf": [{ "$ref": "#/$defs/flow" }, { "type": "null" }] },
+        "published": {
+          "anyOf": [{ "$ref": "#/$defs/flow" }, { "type": "null" }]
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "version", "status", "notes"],
+            "additionalProperties": true,
+            "properties": {
+              "id": { "type": "string" },
+              "version": { "type": "number" },
+              "status": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "runtimeResponse": {
+      "type": "object",
+      "required": [
+        "flow",
+        "visible_questions",
+        "next_question",
+        "answers",
+        "tags",
+        "is_complete"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "flow": { "$ref": "#/$defs/flow" },
+        "visible_questions": { "type": "array" },
+        "next_question": { "type": ["object", "null"] },
+        "answers": { "type": "object" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "is_complete": { "type": "boolean" }
+      }
+    }
+  }
+}

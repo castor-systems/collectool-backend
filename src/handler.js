@@ -1,12 +1,11 @@
 'use strict';
 
 const {
-  DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand,
+  GetCommand,
+  PutCommand,
   QueryCommand,
   ScanCommand,
-} = require('@aws-sdk/client-dynamodb');
+} = require('@aws-sdk/lib-dynamodb');
 const {
   CognitoIdentityProviderClient,
   AdminDisableUserCommand,
@@ -15,13 +14,19 @@ const {
   GetUserCommand,
   ListUsersCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
+const { error, json } = require('./http/responses');
+const { ddb } = require('./repositories/dynamo');
 const { buildRuntimeResponse, validateFlow } = require('./runtime');
 const { buildSeedData, nowSeconds } = require('./seed');
 
-const ddb = new DynamoDBClient({});
 const cognito = new CognitoIdentityProviderClient({});
 
-const CATEGORY_STATUSES = new Set(['ACTIVE', 'DRAFT', 'COMING_SOON', 'ARCHIVED']);
+const CATEGORY_STATUSES = new Set([
+  'ACTIVE',
+  'DRAFT',
+  'COMING_SOON',
+  'ARCHIVED',
+]);
 const PROGRESS_MODES = new Set(['FULL', 'WISHLIST', 'NONE']);
 const ENTITY_STATUSES = new Set(['ACTIVE', 'DRAFT', 'ARCHIVED']);
 const DEFAULT_LIMIT = 25;
@@ -36,65 +41,13 @@ function table(name) {
   return value;
 }
 
-function toAttr(value) {
-  if (value === null) return { NULL: true };
-  if (typeof value === 'string') return { S: value };
-  if (typeof value === 'number') return { N: String(value) };
-  if (typeof value === 'boolean') return { BOOL: value };
-  if (Array.isArray(value)) return { L: value.map(toAttr) };
-  if (typeof value === 'object') {
-    return {
-      M: Object.fromEntries(
-        Object.entries(value)
-          .filter(([, item]) => item !== undefined)
-          .map(([key, item]) => [key, toAttr(item)])
-      ),
-    };
-  }
-  return { S: String(value) };
-}
-
-function fromAttr(attr) {
-  if (!attr) return undefined;
-  if ('S' in attr) return attr.S;
-  if ('N' in attr) return Number(attr.N);
-  if ('BOOL' in attr) return attr.BOOL;
-  if ('NULL' in attr) return null;
-  if ('L' in attr) return attr.L.map(fromAttr);
-  if ('M' in attr) return Object.fromEntries(Object.entries(attr.M).map(([key, value]) => [key, fromAttr(value)]));
-  return undefined;
-}
-
-function marshal(item) {
-  return Object.fromEntries(
-    Object.entries(item)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, toAttr(value)])
-  );
-}
-
-function unmarshal(item) {
-  return item ? Object.fromEntries(Object.entries(item).map(([key, value]) => [key, fromAttr(value)])) : null;
-}
-
-function json(statusCode, payload, headers = {}) {
-  return {
-    statusCode,
-    headers: {
-      'content-type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(payload),
-  };
-}
-
-function error(statusCode, message) {
-  return json(statusCode, { message });
-}
-
 function parseBody(event) {
-  if (!event.body) return {};
-  const body = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
+  if (!event.body) {
+    return {};
+  }
+  const body = event.isBase64Encoded
+    ? Buffer.from(event.body, 'base64').toString('utf8')
+    : event.body;
   try {
     return JSON.parse(body);
   } catch (_err) {
@@ -108,21 +61,32 @@ function claims(event) {
 
 function claimGroups(jwtClaims) {
   const raw = jwtClaims['cognito:groups'];
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'string') return raw.split(',').map((group) => group.trim()).filter(Boolean);
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map((group) => group.trim())
+      .filter(Boolean);
+  }
   return [];
 }
 
 function assertAdmin(event) {
   const jwtClaims = claims(event);
   const groups = claimGroups(jwtClaims);
-  const allowed = (process.env.ALLOWED_ADMIN_GROUPS || 'admin,collectool-admins')
+  const allowed = (
+    process.env.ALLOWED_ADMIN_GROUPS || 'admin,collectool-admins'
+  )
     .split(',')
     .map((group) => group.trim())
     .filter(Boolean);
 
   if (allowed.length > 0 && !groups.some((group) => allowed.includes(group))) {
-    throw Object.assign(new Error('Admin privileges required'), { statusCode: 403 });
+    throw Object.assign(new Error('Admin privileges required'), {
+      statusCode: 403,
+    });
   }
 
   return { jwtClaims, groups };
@@ -137,76 +101,86 @@ function bearerToken(event) {
 
 async function getCategory(categoryId) {
   const result = await ddb.send(
-    new GetItemCommand({
+    new GetCommand({
       TableName: table('CATEGORIES_TABLE'),
-      Key: marshal({ id: categoryId }),
+      Key: { id: categoryId },
     })
   );
-  return unmarshal(result.Item);
+  return result.Item || null;
 }
 
 async function putCategory(category) {
   await ddb.send(
-    new PutItemCommand({
+    new PutCommand({
       TableName: table('CATEGORIES_TABLE'),
-      Item: marshal(category),
+      Item: category,
     })
   );
   return category;
 }
 
 async function listCategories({ includeDrafts = true } = {}) {
-  const result = await ddb.send(new ScanCommand({ TableName: table('CATEGORIES_TABLE') }));
-  const categories = (result.Items || []).map(unmarshal);
-  return categories
+  const result = await ddb.send(
+    new ScanCommand({ TableName: table('CATEGORIES_TABLE') })
+  );
+  return (result.Items || [])
     .filter((category) => includeDrafts || category.status === 'ACTIVE')
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function getEntity(entityId) {
   const result = await ddb.send(
-    new GetItemCommand({
+    new GetCommand({
       TableName: table('ENTITIES_TABLE'),
-      Key: marshal({ id: entityId }),
+      Key: { id: entityId },
     })
   );
-  return unmarshal(result.Item);
+  return result.Item || null;
 }
 
 async function putEntity(entity) {
   await ddb.send(
-    new PutItemCommand({
+    new PutCommand({
       TableName: table('ENTITIES_TABLE'),
-      Item: marshal(entity),
+      Item: entity,
     })
   );
   return entity;
 }
 
 async function listEntities(type) {
-  const result = await ddb.send(new ScanCommand({ TableName: table('ENTITIES_TABLE') }));
-  const entities = (result.Items || []).map(unmarshal);
-  return entities
+  const result = await ddb.send(
+    new ScanCommand({ TableName: table('ENTITIES_TABLE') })
+  );
+  return (result.Items || [])
     .filter((entity) => !type || entity.type === type)
-    .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+    .sort(
+      (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name)
+    );
 }
 
 async function getFlow(categoryId, flowKey) {
   const result = await ddb.send(
-    new GetItemCommand({
+    new GetCommand({
       TableName: table('FLOWS_TABLE'),
-      Key: marshal({ category_id: categoryId, flow_key: flowKey }),
+      Key: { category_id: categoryId, flow_key: flowKey },
     })
   );
-  const item = unmarshal(result.Item);
+  const item = result.Item;
   return item ? item.flow : null;
 }
 
 async function putFlow(categoryId, flowKey, flow) {
   await ddb.send(
-    new PutItemCommand({
+    new PutCommand({
       TableName: table('FLOWS_TABLE'),
-      Item: marshal({ category_id: categoryId, flow_key: flowKey, flow, version: flow.version, status: flow.status }),
+      Item: {
+        category_id: categoryId,
+        flow_key: flowKey,
+        flow,
+        version: flow.version,
+        status: flow.status,
+      },
     })
   );
   return flow;
@@ -217,17 +191,19 @@ async function listFlows(categoryId) {
     new QueryCommand({
       TableName: table('FLOWS_TABLE'),
       KeyConditionExpression: 'category_id = :categoryId',
-      ExpressionAttributeValues: marshal({ ':categoryId': categoryId }),
+      ExpressionAttributeValues: { ':categoryId': categoryId },
     })
   );
-  return (result.Items || []).map(unmarshal).map((item) => item.flow);
+  return (result.Items || []).map((item) => item.flow);
 }
 
 async function latestPublishedFlow(categoryId) {
   const flows = await listFlows(categoryId);
-  return flows
-    .filter((flow) => flow.status === 'PUBLISHED')
-    .sort((a, b) => (b.version || 0) - (a.version || 0))[0] || null;
+  return (
+    flows
+      .filter((flow) => flow.status === 'PUBLISHED')
+      .sort((a, b) => (b.version || 0) - (a.version || 0))[0] || null
+  );
 }
 
 function flowHistory(flows) {
@@ -241,7 +217,11 @@ function flowHistory(flows) {
       updated_at: flow.updated_at,
       created_at: flow.created_at,
     }))
-    .sort((a, b) => (b.updated_at || b.published_at || b.created_at || 0) - (a.updated_at || a.published_at || a.created_at || 0));
+    .sort(
+      (a, b) =>
+        (b.updated_at || b.published_at || b.created_at || 0) -
+        (a.updated_at || a.published_at || a.created_at || 0)
+    );
 }
 
 async function ensureSeeded() {
@@ -267,7 +247,9 @@ async function ensureSeeded() {
 }
 
 function attributeMap(attributes) {
-  return Object.fromEntries((attributes || []).map((attribute) => [attribute.Name, attribute.Value]));
+  return Object.fromEntries(
+    (attributes || []).map((attribute) => [attribute.Name, attribute.Value])
+  );
 }
 
 function mapCognitoUser(user) {
@@ -282,20 +264,34 @@ function mapCognitoUser(user) {
     status: enabled ? 'active' : 'inactive',
     enabled,
     cognitoStatus: user.UserStatus || 'UNKNOWN',
-    createdAt: user.UserCreateDate ? new Date(user.UserCreateDate).toISOString() : new Date(0).toISOString(),
-    lastUpdatedAt: user.UserLastModifiedDate ? new Date(user.UserLastModifiedDate).toISOString() : new Date(0).toISOString(),
+    createdAt: user.UserCreateDate
+      ? new Date(user.UserCreateDate).toISOString()
+      : new Date(0).toISOString(),
+    lastUpdatedAt: user.UserLastModifiedDate
+      ? new Date(user.UserLastModifiedDate).toISOString()
+      : new Date(0).toISOString(),
   };
 }
 
 function matchesUserFilters(user, query) {
-  if (query.status && user.status !== query.status) return false;
-  if (query.verified === 'true' && !user.verified) return false;
-  if (query.verified === 'false' && user.verified) return false;
+  if (query.status && user.status !== query.status) {
+    return false;
+  }
+  if (query.verified === 'true' && !user.verified) {
+    return false;
+  }
+  if (query.verified === 'false' && user.verified) {
+    return false;
+  }
 
   if (query.search) {
     const needle = query.search.toLowerCase();
-    const haystack = [user.username, user.email, user.name].join(' ').toLowerCase();
-    if (!haystack.includes(needle)) return false;
+    const haystack = [user.username, user.email, user.name]
+      .join(' ')
+      .toLowerCase();
+    if (!haystack.includes(needle)) {
+      return false;
+    }
   }
 
   return true;
@@ -310,7 +306,9 @@ async function listAppUsers(query) {
       PaginationToken: query.paginationToken,
     })
   );
-  const users = (result.Users || []).map(mapCognitoUser).filter((user) => matchesUserFilters(user, query));
+  const users = (result.Users || [])
+    .map(mapCognitoUser)
+    .filter((user) => matchesUserFilters(user, query));
   return { users, nextToken: result.PaginationToken };
 }
 
@@ -330,7 +328,9 @@ async function loadUsersForMetrics() {
 
     users.push(...(result.Users || []).map(mapCognitoUser));
     token = result.PaginationToken;
-    if (!token) break;
+    if (!token) {
+      break;
+    }
   }
 
   return users;
@@ -347,7 +347,10 @@ function buildMetrics(users) {
   const oneHour = now.getTime() - 60 * 60 * 1000;
   const oneDay = now.getTime() - 24 * 60 * 60 * 1000;
   const sevenDays = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-  const createdTimes = users.map((user) => ({ user, time: new Date(user.createdAt).getTime() }));
+  const createdTimes = users.map((user) => ({
+    user,
+    time: new Date(user.createdAt).getTime(),
+  }));
 
   const hourlyChart = [];
   for (let index = 23; index >= 0; index -= 1) {
@@ -356,7 +359,9 @@ function buildMetrics(users) {
     hourlyChart.push({
       hour: hour.toISOString().slice(11, 16),
       timestamp: hour.toISOString(),
-      users: createdTimes.filter(({ time }) => time >= hour.getTime() && time < nextHour.getTime()).length,
+      users: createdTimes.filter(
+        ({ time }) => time >= hour.getTime() && time < nextHour.getTime()
+      ).length,
     });
   }
 
@@ -369,33 +374,68 @@ function buildMetrics(users) {
     dailyChart.push({
       day: day.toISOString().slice(0, 10),
       date: day.toISOString(),
-      users: createdTimes.filter(({ time }) => time >= day.getTime() && time < nextDay.getTime()).length,
+      users: createdTimes.filter(
+        ({ time }) => time >= day.getTime() && time < nextDay.getTime()
+      ).length,
     });
   }
 
   return {
     kpis: {
-      newUsersLastHour: createdTimes.filter(({ time }) => time >= oneHour).length,
-      newUsersLast24Hours: createdTimes.filter(({ time }) => time >= oneDay).length,
-      newUsersLast7Days: createdTimes.filter(({ time }) => time >= sevenDays).length,
+      newUsersLastHour: createdTimes.filter(({ time }) => time >= oneHour)
+        .length,
+      newUsersLast24Hours: createdTimes.filter(({ time }) => time >= oneDay)
+        .length,
+      newUsersLast7Days: createdTimes.filter(({ time }) => time >= sevenDays)
+        .length,
       totalRegistered: users.length,
     },
     statusSummary: [
-      { label: 'active', value: users.filter((user) => user.status === 'active').length },
-      { label: 'inactive', value: users.filter((user) => user.status === 'inactive').length },
+      {
+        label: 'active',
+        value: users.filter((user) => user.status === 'active').length,
+      },
+      {
+        label: 'inactive',
+        value: users.filter((user) => user.status === 'inactive').length,
+      },
     ],
     verificationSummary: [
-      { label: 'verified', value: users.filter((user) => user.verified).length },
-      { label: 'unverified', value: users.filter((user) => !user.verified).length },
+      {
+        label: 'verified',
+        value: users.filter((user) => user.verified).length,
+      },
+      {
+        label: 'unverified',
+        value: users.filter((user) => !user.verified).length,
+      },
     ],
     recentSignups: [...users]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       .slice(0, 8)
-      .map(({ username, name, email, createdAt }) => ({ username, name, email, createdAt })),
+      .map(({ username, name, email, createdAt }) => ({
+        username,
+        name,
+        email,
+        createdAt,
+      })),
     recentlyUpdatedUsers: [...users]
-      .sort((a, b) => new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.lastUpdatedAt).getTime() -
+          new Date(a.lastUpdatedAt).getTime()
+      )
       .slice(0, 8)
-      .map(({ username, name, email, status, lastUpdatedAt }) => ({ username, name, email, status, lastUpdatedAt })),
+      .map(({ username, name, email, status, lastUpdatedAt }) => ({
+        username,
+        name,
+        email,
+        status,
+        lastUpdatedAt,
+      })),
     hourlyChart,
     dailyChart,
     generatedAt: now.toISOString(),
@@ -427,10 +467,15 @@ async function handleSession(event) {
 
   if (token) {
     try {
-      const user = await cognito.send(new GetUserCommand({ AccessToken: token }));
+      const user = await cognito.send(
+        new GetUserCommand({ AccessToken: token })
+      );
       userAttributes = attributeMap(user.UserAttributes);
     } catch (err) {
-      console.warn('Unable to load Cognito user attributes for session', err.name || err.message);
+      console.warn(
+        'Unable to load Cognito user attributes for session',
+        err.name || err.message
+      );
     }
   }
 
@@ -456,17 +501,29 @@ async function handleUsers(path, method, query) {
     return json(200, await listAppUsers(query));
   }
 
-  const match = path.match(/^\/admin\/users\/([^/]+)\/(enable|disable|unlock|ban|unban)$/);
+  const match = path.match(
+    /^\/admin\/users\/([^/]+)\/(enable|disable|unlock|ban|unban)$/
+  );
   if (method === 'POST' && match) {
     const username = decodeURIComponent(match[1]);
     const action = match[2];
 
     if (action === 'disable' || action === 'ban') {
-      await cognito.send(new AdminDisableUserCommand({ UserPoolId: table('APP_USER_POOL_ID'), Username: username }));
+      await cognito.send(
+        new AdminDisableUserCommand({
+          UserPoolId: table('APP_USER_POOL_ID'),
+          Username: username,
+        })
+      );
     }
 
     if (action === 'enable' || action === 'unban' || action === 'unlock') {
-      await cognito.send(new AdminEnableUserCommand({ UserPoolId: table('APP_USER_POOL_ID'), Username: username }));
+      await cognito.send(
+        new AdminEnableUserCommand({
+          UserPoolId: table('APP_USER_POOL_ID'),
+          Username: username,
+        })
+      );
     }
 
     return json(200, { user: await getUser(username) });
@@ -481,12 +538,18 @@ async function handleCategories(path, method, body) {
   }
 
   if (method === 'POST' && path === '/admin/collection-builder/categories') {
-    if (!body.id || !body.name) return error(400, 'Category id and name are required');
-    if (await getCategory(body.id)) return error(409, 'Category id already exists');
+    if (!body.id || !body.name) {
+      return error(400, 'Category id and name are required');
+    }
+    if (await getCategory(body.id)) {
+      return error(409, 'Category id already exists');
+    }
 
     const timestamp = nowSeconds();
     const status = CATEGORY_STATUSES.has(body.status) ? body.status : 'DRAFT';
-    const progressMode = PROGRESS_MODES.has(body.progress_mode) ? body.progress_mode : 'NONE';
+    const progressMode = PROGRESS_MODES.has(body.progress_mode)
+      ? body.progress_mode
+      : 'NONE';
     const category = {
       id: body.id,
       name: body.name,
@@ -518,14 +581,22 @@ async function handleCategories(path, method, body) {
     return json(201, { category });
   }
 
-  const match = path.match(/^\/admin\/collection-builder\/categories\/([^/]+)$/);
+  const match = path.match(
+    /^\/admin\/collection-builder\/categories\/([^/]+)$/
+  );
   if (method === 'PUT' && match) {
     const categoryId = decodeURIComponent(match[1]);
     const existing = await getCategory(categoryId);
-    if (!existing) return error(404, 'Category not found');
+    if (!existing) {
+      return error(404, 'Category not found');
+    }
 
-    if (body.status && !CATEGORY_STATUSES.has(body.status)) return error(400, 'Invalid category status');
-    if (body.progress_mode && !PROGRESS_MODES.has(body.progress_mode)) return error(400, 'Invalid progress mode');
+    if (body.status && !CATEGORY_STATUSES.has(body.status)) {
+      return error(400, 'Invalid category status');
+    }
+    if (body.progress_mode && !PROGRESS_MODES.has(body.progress_mode)) {
+      return error(400, 'Invalid progress mode');
+    }
 
     const category = {
       ...existing,
@@ -539,11 +610,24 @@ async function handleCategories(path, method, body) {
     return json(200, { category });
   }
 
-  if (method === 'POST' && path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/archive$/)) {
-    const categoryId = decodeURIComponent(path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/archive$/)[1]);
+  if (
+    method === 'POST' &&
+    path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/archive$/)
+  ) {
+    const categoryId = decodeURIComponent(
+      path.match(
+        /^\/admin\/collection-builder\/categories\/([^/]+)\/archive$/
+      )[1]
+    );
     const existing = await getCategory(categoryId);
-    if (!existing) return error(404, 'Category not found');
-    const category = { ...existing, status: 'ARCHIVED', updated_at: nowSeconds() };
+    if (!existing) {
+      return error(404, 'Category not found');
+    }
+    const category = {
+      ...existing,
+      status: 'ARCHIVED',
+      updated_at: nowSeconds(),
+    };
     await putCategory(category);
     return json(200, { category });
   }
@@ -557,11 +641,17 @@ async function handleEntities(path, method, query, body) {
   }
 
   if (method === 'POST' && path === '/admin/collection-builder/entities') {
-    if (!body.id || !body.type || !body.name) return error(400, 'Entity id, type, and name are required');
-    if (await getEntity(body.id)) return error(409, 'Entity id already exists');
+    if (!body.id || !body.type || !body.name) {
+      return error(400, 'Entity id, type, and name are required');
+    }
+    if (await getEntity(body.id)) {
+      return error(409, 'Entity id already exists');
+    }
 
     for (const parentId of body.parents || []) {
-      if (!(await getEntity(parentId))) return error(400, `Parent entity not found: ${parentId}`);
+      if (!(await getEntity(parentId))) {
+        return error(400, `Parent entity not found: ${parentId}`);
+      }
     }
 
     const timestamp = nowSeconds();
@@ -569,7 +659,9 @@ async function handleEntities(path, method, query, body) {
       id: body.id,
       type: body.type,
       name: body.name,
-      status: ENTITY_STATUSES.has(body.status) ? body.status : body.status || 'DRAFT',
+      status: ENTITY_STATUSES.has(body.status)
+        ? body.status
+        : body.status || 'DRAFT',
       parents: Array.isArray(body.parents) ? body.parents : [],
       tags: Array.isArray(body.tags) ? body.tags : [],
       description: body.description || '',
@@ -585,10 +677,14 @@ async function handleEntities(path, method, query, body) {
   if (method === 'PUT' && match) {
     const entityId = decodeURIComponent(match[1]);
     const existing = await getEntity(entityId);
-    if (!existing) return error(404, 'Entity not found');
+    if (!existing) {
+      return error(404, 'Entity not found');
+    }
 
     for (const parentId of body.parents || []) {
-      if (!(await getEntity(parentId))) return error(400, `Parent entity not found: ${parentId}`);
+      if (!(await getEntity(parentId))) {
+        return error(400, `Parent entity not found: ${parentId}`);
+      }
     }
 
     const entity = {
@@ -608,21 +704,30 @@ async function handleEntities(path, method, query, body) {
 
 async function flowSummary(categoryId) {
   const category = await getCategory(categoryId);
-  if (!category) return null;
+  if (!category) {
+    return null;
+  }
   const flows = await listFlows(categoryId);
   return {
     draft: flows.find((flow) => flow.status === 'DRAFT') || null,
-    published: flows.filter((flow) => flow.status === 'PUBLISHED').sort((a, b) => b.version - a.version)[0] || null,
+    published:
+      flows
+        .filter((flow) => flow.status === 'PUBLISHED')
+        .sort((a, b) => b.version - a.version)[0] || null,
     history: flowHistory(flows),
   };
 }
 
 async function handleFlows(path, method, body) {
-  const flowMatch = path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/flow$/);
+  const flowMatch = path.match(
+    /^\/admin\/collection-builder\/categories\/([^/]+)\/flow$/
+  );
   if (flowMatch) {
     const categoryId = decodeURIComponent(flowMatch[1]);
     const category = await getCategory(categoryId);
-    if (!category) return error(404, 'Category not found');
+    if (!category) {
+      return error(404, 'Category not found');
+    }
 
     if (method === 'GET') {
       return json(200, await flowSummary(categoryId));
@@ -631,14 +736,17 @@ async function handleFlows(path, method, body) {
     if (method === 'PUT') {
       const existingDraft = await getFlow(categoryId, 'FLOW#DRAFT');
       const timestamp = nowSeconds();
-      const version = body.version || existingDraft?.version || category.draft_version || 1;
+      const version =
+        body.version || existingDraft?.version || category.draft_version || 1;
       const flow = {
         id: body.id || existingDraft?.id || `flow-${categoryId}-draft`,
         category_id: categoryId,
         version,
         status: 'DRAFT',
-        root_question_ids: body.root_question_ids || existingDraft?.root_question_ids || [],
-        question_groups: body.question_groups || existingDraft?.question_groups || {},
+        root_question_ids:
+          body.root_question_ids || existingDraft?.root_question_ids || [],
+        question_groups:
+          body.question_groups || existingDraft?.question_groups || {},
         conditions: body.conditions || existingDraft?.conditions || [],
         questions: body.questions || existingDraft?.questions || [],
         notes: body.notes || existingDraft?.notes || '',
@@ -646,7 +754,9 @@ async function handleFlows(path, method, body) {
         updated_at: timestamp,
       };
       const validationErrors = validateFlow(flow, await listEntities());
-      if (validationErrors.length > 0) return error(400, validationErrors.join('; '));
+      if (validationErrors.length > 0) {
+        return error(400, validationErrors.join('; '));
+      }
 
       await putFlow(categoryId, 'FLOW#DRAFT', flow);
       await putCategory({
@@ -659,28 +769,44 @@ async function handleFlows(path, method, body) {
     }
   }
 
-  const previewMatch = path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/preview$/);
+  const previewMatch = path.match(
+    /^\/admin\/collection-builder\/categories\/([^/]+)\/preview$/
+  );
   if (method === 'POST' && previewMatch) {
     const categoryId = decodeURIComponent(previewMatch[1]);
     const category = await getCategory(categoryId);
-    if (!category) return error(404, 'Category not found');
+    if (!category) {
+      return error(404, 'Category not found');
+    }
 
-    const flow = body.use_draft ? await getFlow(categoryId, 'FLOW#DRAFT') : await latestPublishedFlow(categoryId);
-    if (!flow) return error(404, 'Flow not found');
+    const flow = body.use_draft
+      ? await getFlow(categoryId, 'FLOW#DRAFT')
+      : await latestPublishedFlow(categoryId);
+    if (!flow) {
+      return error(404, 'Flow not found');
+    }
     return json(200, buildRuntimeResponse(flow, body.answers || {}));
   }
 
-  const publishMatch = path.match(/^\/admin\/collection-builder\/categories\/([^/]+)\/publish$/);
+  const publishMatch = path.match(
+    /^\/admin\/collection-builder\/categories\/([^/]+)\/publish$/
+  );
   if (method === 'POST' && publishMatch) {
     const categoryId = decodeURIComponent(publishMatch[1]);
     const category = await getCategory(categoryId);
-    if (!category) return error(404, 'Category not found');
+    if (!category) {
+      return error(404, 'Category not found');
+    }
 
     const draft = await getFlow(categoryId, 'FLOW#DRAFT');
-    if (!draft) return error(400, 'Draft flow is required before publishing');
+    if (!draft) {
+      return error(400, 'Draft flow is required before publishing');
+    }
 
     const validationErrors = validateFlow(draft, await listEntities());
-    if (validationErrors.length > 0) return error(400, validationErrors.join('; '));
+    if (validationErrors.length > 0) {
+      return error(400, validationErrors.join('; '));
+    }
 
     const timestamp = nowSeconds();
     const nextVersion = (category.published_version || 0) + 1;
@@ -695,7 +821,10 @@ async function handleFlows(path, method, body) {
     };
     const updatedCategory = {
       ...category,
-      status: body.category_status && CATEGORY_STATUSES.has(body.category_status) ? body.category_status : category.status,
+      status:
+        body.category_status && CATEGORY_STATUSES.has(body.category_status)
+          ? body.category_status
+          : category.status,
       published_version: nextVersion,
       current_version_id: published.id,
       updated_at: timestamp,
@@ -710,7 +839,9 @@ async function handleFlows(path, method, body) {
 }
 
 async function handleBootstrap(path, method) {
-  if (method !== 'GET' || path !== '/admin/collection-builder/bootstrap') return null;
+  if (method !== 'GET' || path !== '/admin/collection-builder/bootstrap') {
+    return null;
+  }
 
   const categories = await listCategories();
   const entities = await listEntities();
@@ -724,26 +855,40 @@ async function handleBootstrap(path, method) {
 
 async function handlePublicRuntime(path, method, body) {
   if (method === 'GET' && path === '/collection-builder/categories') {
-    return json(200, { categories: await listCategories({ includeDrafts: false }) });
+    return json(200, {
+      categories: await listCategories({ includeDrafts: false }),
+    });
   }
 
-  const flowMatch = path.match(/^\/collection-builder\/categories\/([^/]+)\/flow$/);
+  const flowMatch = path.match(
+    /^\/collection-builder\/categories\/([^/]+)\/flow$/
+  );
   if (method === 'GET' && flowMatch) {
     const categoryId = decodeURIComponent(flowMatch[1]);
     const category = await getCategory(categoryId);
-    if (!category || category.status !== 'ACTIVE') return error(404, 'Category not found');
+    if (!category || category.status !== 'ACTIVE') {
+      return error(404, 'Category not found');
+    }
     const flow = await latestPublishedFlow(categoryId);
-    if (!flow) return error(404, 'Published flow not found');
+    if (!flow) {
+      return error(404, 'Published flow not found');
+    }
     return json(200, { flow });
   }
 
-  const runtimeMatch = path.match(/^\/collection-builder\/categories\/([^/]+)\/runtime$/);
+  const runtimeMatch = path.match(
+    /^\/collection-builder\/categories\/([^/]+)\/runtime$/
+  );
   if (method === 'POST' && runtimeMatch) {
     const categoryId = decodeURIComponent(runtimeMatch[1]);
     const category = await getCategory(categoryId);
-    if (!category || category.status !== 'ACTIVE') return error(404, 'Category not found');
+    if (!category || category.status !== 'ACTIVE') {
+      return error(404, 'Category not found');
+    }
     const flow = await latestPublishedFlow(categoryId);
-    if (!flow) return error(404, 'Published flow not found');
+    if (!flow) {
+      return error(404, 'Published flow not found');
+    }
     return json(200, buildRuntimeResponse(flow, body.answers || {}));
   }
 
@@ -754,10 +899,15 @@ async function route(event) {
   const method = event.requestContext?.http?.method || event.httpMethod;
   const path = event.rawPath || event.path || '/';
   const query = event.queryStringParameters || {};
-  const body = ['POST', 'PUT', 'PATCH'].includes(method) ? parseBody(event) : {};
+  const body = ['POST', 'PUT', 'PATCH'].includes(method)
+    ? parseBody(event)
+    : {};
 
   if (method === 'GET' && path === '/health') {
-    return json(200, { ok: true, environment: process.env.ENVIRONMENT || 'dev' });
+    return json(200, {
+      ok: true,
+      environment: process.env.ENVIRONMENT || 'dev',
+    });
   }
 
   await ensureSeeded();
@@ -765,8 +915,12 @@ async function route(event) {
   if (path.startsWith('/admin/')) {
     assertAdmin(event);
 
-    if (method === 'GET' && path === '/admin/session') return handleSession(event);
-    if (method === 'GET' && path === '/admin/metrics/users') return json(200, buildMetrics(await loadUsersForMetrics()));
+    if (method === 'GET' && path === '/admin/session') {
+      return handleSession(event);
+    }
+    if (method === 'GET' && path === '/admin/metrics/users') {
+      return json(200, buildMetrics(await loadUsersForMetrics()));
+    }
 
     const handlers = [
       () => handleUsers(path, method, query),
@@ -778,21 +932,56 @@ async function route(event) {
 
     for (const handler of handlers) {
       const response = await handler();
-      if (response) return response;
+      if (response) {
+        return response;
+      }
     }
   }
 
   const publicRuntimeResponse = await handlePublicRuntime(path, method, body);
-  if (publicRuntimeResponse) return publicRuntimeResponse;
+  if (publicRuntimeResponse) {
+    return publicRuntimeResponse;
+  }
 
   return error(404, 'Route not found');
 }
 
 exports.handler = async function handler(event) {
+  const startedAt = Date.now();
+  const requestId = event.requestContext?.requestId || 'unknown';
+  const method = event.requestContext?.http?.method || event.httpMethod;
+  const path = event.rawPath || event.path || '/';
+
   try {
-    return await route(event);
+    const response = await route(event);
+    console.info(
+      JSON.stringify({
+        level: 'info',
+        message: 'request_completed',
+        requestId,
+        method,
+        path,
+        statusCode: response.statusCode,
+        durationMs: Date.now() - startedAt,
+      })
+    );
+    return response;
   } catch (err) {
-    console.error(err);
-    return error(err.statusCode || err.$metadata?.httpStatusCode || 500, err.message || 'Unexpected server error');
+    const statusCode = err.statusCode || err.$metadata?.httpStatusCode || 500;
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        message: 'request_failed',
+        requestId,
+        method,
+        path,
+        statusCode,
+        durationMs: Date.now() - startedAt,
+        error: err.message || 'Unexpected server error',
+      })
+    );
+
+    const details = statusCode >= 500 ? { requestId } : {};
+    return error(statusCode, err.message || 'Unexpected server error', details);
   }
 };

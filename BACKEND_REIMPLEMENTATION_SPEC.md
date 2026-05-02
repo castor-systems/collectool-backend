@@ -101,7 +101,7 @@ Common error shape expected by frontend:
 
 ```ts
 {
-  message: string
+  message: string;
 }
 ```
 
@@ -120,7 +120,7 @@ NEXT_PUBLIC_COLLECTOOL_API_URL
 The admin client calls:
 
 ```ts
-fetch(`${apiUrl.replace(/\/$/, "")}${path}`)
+fetch(`${apiUrl.replace(/\/$/, '')}${path}`);
 ```
 
 ### 3.2 Date/Timestamp Formats
@@ -133,8 +133,8 @@ Current API expects two date styles:
 Examples:
 
 ```ts
-createdAt: "2026-05-01T12:00:00.000Z"
-updated_at: 1777636800
+createdAt: '2026-05-01T12:00:00.000Z';
+updated_at: 1777636800;
 ```
 
 Important: current fixtures accidentally use millisecond-like values for Collection Builder. The UI multiplies some flow history timestamps by `1000`, so backend should use Unix seconds for `created_at`, `updated_at`, and `published_at`.
@@ -144,7 +144,7 @@ Important: current fixtures accidentally use millisecond-like values for Collect
 Backend Collection Builder status values are uppercase snake case:
 
 ```ts
-;"ACTIVE" | "DRAFT" | "COMING_SOON" | "ARCHIVED"
+'ACTIVE' | 'DRAFT' | 'COMING_SOON' | 'ARCHIVED';
 ```
 
 Frontend maps them to lowercase kebab case for display.
@@ -152,13 +152,13 @@ Frontend maps them to lowercase kebab case for display.
 Entity statuses are sent uppercase from UI:
 
 ```ts
-;"ACTIVE" | "DRAFT" | "ARCHIVED" | string
+'ACTIVE' | 'DRAFT' | 'ARCHIVED' | string;
 ```
 
 User statuses are lowercase:
 
 ```ts
-"active" | "inactive"
+'active' | 'inactive';
 ```
 
 ## 4. User Metrics
@@ -174,37 +174,37 @@ Expected response:
 ```ts
 interface UserMetricsResponse {
   kpis: {
-    newUsersLastHour: number
-    newUsersLast24Hours: number
-    newUsersLast7Days: number
-    totalRegistered: number
-  }
-  statusSummary: Array<{ label: string; value: number }>
-  verificationSummary: Array<{ label: string; value: number }>
+    newUsersLastHour: number;
+    newUsersLast24Hours: number;
+    newUsersLast7Days: number;
+    totalRegistered: number;
+  };
+  statusSummary: Array<{ label: string; value: number }>;
+  verificationSummary: Array<{ label: string; value: number }>;
   recentSignups: Array<{
-    username: string
-    name: string
-    email: string
-    createdAt: string
-  }>
+    username: string;
+    name: string;
+    email: string;
+    createdAt: string;
+  }>;
   recentlyUpdatedUsers: Array<{
-    username: string
-    name: string
-    email: string
-    status: string
-    lastUpdatedAt: string
-  }>
+    username: string;
+    name: string;
+    email: string;
+    status: string;
+    lastUpdatedAt: string;
+  }>;
   hourlyChart: Array<{
-    hour: string
-    timestamp: string
-    users: number
-  }>
+    hour: string;
+    timestamp: string;
+    users: number;
+  }>;
   dailyChart: Array<{
-    day: string
-    date: string
-    users: number
-  }>
-  generatedAt: string
+    day: string;
+    date: string;
+    users: number;
+  }>;
+  generatedAt: string;
 }
 ```
 
@@ -253,21 +253,21 @@ Expected response:
 
 ```ts
 interface UsersResponse {
-  users: AdminUser[]
-  nextToken?: string
+  users: AdminUser[];
+  nextToken?: string;
 }
 
 interface AdminUser {
-  id: string
-  username: string
-  name: string
-  email: string
-  verified: boolean
-  status: "active" | "inactive"
-  enabled: boolean
-  cognitoStatus: string
-  createdAt: string
-  lastUpdatedAt: string
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  verified: boolean;
+  status: 'active' | 'inactive';
+  enabled: boolean;
+  cognitoStatus: string;
+  createdAt: string;
+  lastUpdatedAt: string;
 }
 ```
 
@@ -297,7 +297,7 @@ Recommended response:
 
 ```ts
 {
-  user: AdminUser
+  user: AdminUser;
 }
 ```
 
@@ -309,16 +309,16 @@ These are pending and should not be considered required by the current frontend 
 
 ```ts
 interface CollectionBuilderCategory {
-  id: string
-  name: string
-  description: string
-  status: "ACTIVE" | "DRAFT" | "COMING_SOON" | "ARCHIVED"
-  current_version_id: string
-  progress_mode: "FULL" | "WISHLIST" | "NONE"
-  published_version: number | null
-  draft_version: number | null
-  updated_at: number
-  created_at: number
+  id: string;
+  name: string;
+  description: string;
+  status: 'ACTIVE' | 'DRAFT' | 'COMING_SOON' | 'ARCHIVED';
+  current_version_id: string;
+  progress_mode: 'FULL' | 'WISHLIST' | 'NONE';
+  published_version: number | null;
+  draft_version: number | null;
+  updated_at: number;
+  created_at: number;
 }
 ```
 
@@ -337,15 +337,15 @@ Meaning:
 
 ```ts
 interface CollectionBuilderEntity {
-  id: string
-  type: string
-  name: string
-  status: string
-  parents: string[]
-  tags: string[]
-  description: string
-  updated_at: number
-  created_at: number
+  id: string;
+  type: string;
+  name: string;
+  status: string;
+  parents: string[];
+  tags: string[];
+  description: string;
+  updated_at: number;
+  created_at: number;
 }
 ```
 
@@ -372,11 +372,11 @@ Relationships:
 
 ```ts
 interface CollectionBuilderQuestionOption {
-  id: string
-  label: string
-  value: string
-  entity_id?: string | null
-  tags: string[]
+  id: string;
+  label: string;
+  value: string;
+  entity_id?: string | null;
+  tags: string[];
 }
 ```
 
@@ -391,13 +391,13 @@ Meaning:
 
 ```ts
 interface CollectionBuilderQuestion {
-  id: string
-  type: "SINGLE_SELECT" | "MULTI_SELECT" | "TOGGLE"
-  label: string
-  helper_text: string
-  required: boolean
-  allow_all: boolean
-  options: CollectionBuilderQuestionOption[]
+  id: string;
+  type: 'SINGLE_SELECT' | 'MULTI_SELECT' | 'TOGGLE';
+  label: string;
+  helper_text: string;
+  required: boolean;
+  allow_all: boolean;
+  options: CollectionBuilderQuestionOption[];
 }
 ```
 
@@ -412,9 +412,9 @@ Question behavior:
 
 ```ts
 interface CollectionBuilderQuestionGroup {
-  id: string
-  label: string
-  questions: string[]
+  id: string;
+  label: string;
+  questions: string[];
 }
 ```
 
@@ -424,16 +424,16 @@ Groups are used as conditional branches. A condition action can show a group.
 
 ```ts
 interface CollectionBuilderConditionRule {
-  id: string
+  id: string;
   condition: {
-    question_id: string
-    operator: "INCLUDES" | "EQUALS" | "NOT_INCLUDES" | "IS_SET"
-    value: string[]
-  }
+    question_id: string;
+    operator: 'INCLUDES' | 'EQUALS' | 'NOT_INCLUDES' | 'IS_SET';
+    value: string[];
+  };
   actions: Array<{
-    type: "SHOW_QUESTION_GROUP"
-    target: string
-  }>
+    type: 'SHOW_QUESTION_GROUP';
+    target: string;
+  }>;
 }
 ```
 
@@ -449,18 +449,18 @@ Condition semantics:
 
 ```ts
 interface CollectionBuilderFlow {
-  id: string
-  category_id: string
-  version: number
-  status: string
-  root_question_ids: string[]
-  question_groups: Record<string, CollectionBuilderQuestionGroup>
-  conditions: CollectionBuilderConditionRule[]
-  questions: CollectionBuilderQuestion[]
-  notes: string
-  published_at?: number
-  updated_at?: number
-  created_at?: number
+  id: string;
+  category_id: string;
+  version: number;
+  status: string;
+  root_question_ids: string[];
+  question_groups: Record<string, CollectionBuilderQuestionGroup>;
+  conditions: CollectionBuilderConditionRule[];
+  questions: CollectionBuilderQuestion[];
+  notes: string;
+  published_at?: number;
+  updated_at?: number;
+  created_at?: number;
 }
 ```
 
@@ -517,11 +517,11 @@ Request:
 
 ```ts
 {
-  id: string
-  name: string
-  description: string
-  status: string
-  progress_mode: string
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  progress_mode: string;
 }
 ```
 
@@ -529,7 +529,7 @@ Response:
 
 ```ts
 {
-  category: CollectionBuilderCategory
+  category: CollectionBuilderCategory;
 }
 ```
 
@@ -550,14 +550,14 @@ PUT /admin/collection-builder/categories/:id
 Request:
 
 ```ts
-Partial<CollectionBuilderCategory>
+Partial<CollectionBuilderCategory>;
 ```
 
 Response:
 
 ```ts
 {
-  category: CollectionBuilderCategory
+  category: CollectionBuilderCategory;
 }
 ```
 
@@ -620,7 +620,7 @@ Response:
 
 ```ts
 {
-  entity: CollectionBuilderEntity
+  entity: CollectionBuilderEntity;
 }
 ```
 
@@ -640,14 +640,14 @@ PUT /admin/collection-builder/entities/:id
 Request:
 
 ```ts
-Partial<CollectionBuilderEntity>
+Partial<CollectionBuilderEntity>;
 ```
 
 Response:
 
 ```ts
 {
-  entity: CollectionBuilderEntity
+  entity: CollectionBuilderEntity;
 }
 ```
 
@@ -663,9 +663,9 @@ Response:
 
 ```ts
 interface CollectionBuilderFlowSummary {
-  draft: CollectionBuilderFlow | null
-  published: CollectionBuilderFlow | null
-  history: CollectionBuilderFlowHistoryEntry[]
+  draft: CollectionBuilderFlow | null;
+  published: CollectionBuilderFlow | null;
+  history: CollectionBuilderFlowHistoryEntry[];
 }
 ```
 
@@ -673,13 +673,13 @@ History entry:
 
 ```ts
 interface CollectionBuilderFlowHistoryEntry {
-  id: string
-  version: number
-  status: string
-  notes: string
-  published_at?: number
-  updated_at?: number
-  created_at?: number
+  id: string;
+  version: number;
+  status: string;
+  notes: string;
+  published_at?: number;
+  updated_at?: number;
+  created_at?: number;
 }
 ```
 
@@ -700,14 +700,14 @@ PUT /admin/collection-builder/categories/:categoryId/flow
 Request:
 
 ```ts
-Partial<CollectionBuilderFlow>
+Partial<CollectionBuilderFlow>;
 ```
 
 Response:
 
 ```ts
 {
-  flow: CollectionBuilderFlow
+  flow: CollectionBuilderFlow;
 }
 ```
 
@@ -745,12 +745,12 @@ Response:
 
 ```ts
 interface CollectionBuilderRuntimeResponse {
-  flow: CollectionBuilderFlow
-  visible_questions: CollectionBuilderQuestion[]
-  next_question: CollectionBuilderQuestion | null
-  answers: Record<string, string | string[]>
-  tags: string[]
-  is_complete: boolean
+  flow: CollectionBuilderFlow;
+  visible_questions: CollectionBuilderQuestion[];
+  next_question: CollectionBuilderQuestion | null;
+  answers: Record<string, string | string[]>;
+  tags: string[];
+  is_complete: boolean;
 }
 ```
 
@@ -788,8 +788,8 @@ Response:
 
 ```ts
 {
-  flow: CollectionBuilderFlow
-  category: CollectionBuilderCategory
+  flow: CollectionBuilderFlow;
+  category: CollectionBuilderCategory;
 }
 ```
 
@@ -832,28 +832,28 @@ Pseudocode:
 
 ```ts
 function isConditionMet(condition, answers) {
-  const answer = answers[condition.question_id]
-  const values = condition.value
+  const answer = answers[condition.question_id];
+  const values = condition.value;
 
-  if (condition.operator === "IS_SET") {
-    return answer !== undefined && answer !== null && answer !== ""
+  if (condition.operator === 'IS_SET') {
+    return answer !== undefined && answer !== null && answer !== '';
   }
 
-  const answerValues = Array.isArray(answer) ? answer : [answer]
+  const answerValues = Array.isArray(answer) ? answer : [answer];
 
-  if (condition.operator === "EQUALS") {
-    return answerValues.some((value) => values.includes(value))
+  if (condition.operator === 'EQUALS') {
+    return answerValues.some((value) => values.includes(value));
   }
 
-  if (condition.operator === "INCLUDES") {
-    return answerValues.some((value) => values.includes(value))
+  if (condition.operator === 'INCLUDES') {
+    return answerValues.some((value) => values.includes(value));
   }
 
-  if (condition.operator === "NOT_INCLUDES") {
-    return !answerValues.some((value) => values.includes(value))
+  if (condition.operator === 'NOT_INCLUDES') {
+    return !answerValues.some((value) => values.includes(value));
   }
 
-  return false
+  return false;
 }
 ```
 
@@ -869,9 +869,9 @@ Tags are generated from selected options:
 Example:
 
 ```ts
-answers = { artist: "bts" }
-option = { value: "bts", tags: ["artist:bts"] }
-tags = ["artist:bts"]
+answers = { artist: 'bts' };
+option = { value: 'bts', tags: ['artist:bts'] };
+tags = ['artist:bts'];
 ```
 
 ### 9.4 "All/Todos" Behavior
@@ -1025,7 +1025,7 @@ Frontend expects:
 
 ```ts
 {
-  message: string
+  message: string;
 }
 ```
 

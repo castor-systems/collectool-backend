@@ -1,0 +1,14 @@
+{
+  "category": {
+    "id": "kpop",
+    "name": "K-pop",
+    "description": "Albums, photocards, merch, artists, groups, members, eras, and subunits.",
+    "status": "DRAFT",
+    "current_version_id": "kpop-v1-draft",
+    "progress_mode": "FULL",
+    "published_version": null,
+    "draft_version": 1,
+    "updated_at": 1777636800000,
+    "created_at": 1777550400000
+  }
+}

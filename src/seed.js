@@ -8,7 +8,8 @@ function buildSeedData(timestamp = nowSeconds()) {
   const category = {
     id: 'kpop',
     name: 'K-pop',
-    description: 'Albums, photocards, merch, artists, groups, members, eras, and subunits.',
+    description:
+      'Albums, photocards, merch, artists, groups, members, eras, and subunits.',
     status: 'DRAFT',
     current_version_id: 'kpop-v1-draft',
     progress_mode: 'FULL',

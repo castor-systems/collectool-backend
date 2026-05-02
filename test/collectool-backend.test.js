@@ -53,7 +53,13 @@ function sampleFlow() {
         required: true,
         allow_all: false,
         options: [
-          { id: 'bts', label: 'BTS', value: 'bts', entity_id: 'group-bts', tags: ['group:bts'] },
+          {
+            id: 'bts',
+            label: 'BTS',
+            value: 'bts',
+            entity_id: 'group-bts',
+            tags: ['group:bts'],
+          },
           { id: 'txt', label: 'TXT', value: 'txt', tags: ['group:txt'] },
         ],
       },
@@ -85,10 +91,13 @@ test('CDK stack creates serverless AWS backend resources', () => {
     GroupName: 'admin',
   });
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-    ExplicitAuthFlows: Match.arrayWith(['ALLOW_USER_PASSWORD_AUTH', 'ALLOW_USER_SRP_AUTH']),
+    ExplicitAuthFlows: Match.arrayWith([
+      'ALLOW_USER_PASSWORD_AUTH',
+      'ALLOW_USER_SRP_AUTH',
+    ]),
   });
   template.hasResourceProperties('AWS::Lambda::Function', {
-    Runtime: 'nodejs20.x',
+    Runtime: 'nodejs24.x',
     Architectures: ['arm64'],
     Environment: {
       Variables: Match.objectLike({
@@ -110,7 +119,10 @@ test('runtime computes conditional questions, tags, and completion', () => {
     member: ['rm'],
   });
 
-  expect(response.visible_questions.map((question) => question.id)).toEqual(['artist', 'member']);
+  expect(response.visible_questions.map((question) => question.id)).toEqual([
+    'artist',
+    'member',
+  ]);
   expect(response.tags).toEqual(['group:bts', 'member:rm']);
   expect(response.next_question).toBeNull();
   expect(response.is_complete).toBe(true);
@@ -122,7 +134,9 @@ test('runtime removes answers for invisible questions', () => {
     member: ['rm'],
   });
 
-  expect(response.visible_questions.map((question) => question.id)).toEqual(['artist']);
+  expect(response.visible_questions.map((question) => question.id)).toEqual([
+    'artist',
+  ]);
   expect(response.answers).toEqual({ artist: 'txt' });
   expect(response.tags).toEqual(['group:txt']);
 });
@@ -131,5 +145,7 @@ test('flow validation catches missing references', () => {
   const flow = sampleFlow();
   flow.root_question_ids = ['missing'];
 
-  expect(validateFlow(flow, [{ id: 'group-bts' }])).toContain('Root question references missing question missing');
+  expect(validateFlow(flow, [{ id: 'group-bts' }])).toContain(
+    'Root question references missing question missing'
+  );
 });

@@ -1,0 +1,11 @@
+apis:
+  collectool:
+    root: docs/openapi.yaml
+
+extends:
+  - recommended
+
+rules:
+  no-unused-components: warn
+  operation-4xx-response: error
+  security-defined: error
