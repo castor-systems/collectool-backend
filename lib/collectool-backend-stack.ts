@@ -16,6 +16,7 @@ const cognito = require('aws-cdk-lib/aws-cognito');
 const dynamodb = require('aws-cdk-lib/aws-dynamodb');
 const iam = require('aws-cdk-lib/aws-iam');
 const lambda = require('aws-cdk-lib/aws-lambda');
+const lambdaNodejs = require('aws-cdk-lib/aws-lambda-nodejs');
 const logs = require('aws-cdk-lib/aws-logs');
 const { NagSuppressions } = require('cdk-nag');
 
@@ -196,15 +197,21 @@ class CollectoolBackendStack extends Stack {
       removalPolicy,
     });
 
-    const apiHandler = new lambda.Function(this, 'ApiHandler', {
+    const apiHandler = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
       functionName: `collectool-${environment}-api`,
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
-      handler: 'handler.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'src')),
+      entry: path.join(process.cwd(), 'src', 'handler.ts'),
+      handler: 'handler',
       memorySize: 256,
       timeout: Duration.seconds(15),
       logGroup: apiLogGroup,
+      bundling: {
+        target: 'node24',
+        minify: true,
+        sourceMap: true,
+        externalModules: [],
+      },
       environment: {
         ENVIRONMENT: environment,
         CATEGORIES_TABLE: categoriesTable.tableName,
@@ -349,9 +356,25 @@ class CollectoolBackendStack extends Stack {
       [adminUserPool, appUserPool],
       [
         {
+          id: 'AwsSolutions-COG2',
+          reason:
+            'MFA is deferred until the product decides the admin/app login UX; Cognito passwords are strong and advanced security/MFA must be enabled intentionally for production.',
+        },
+        {
           id: 'AwsSolutions-COG8',
           reason:
             'Cognito Plus tier advanced security is intentionally deferred to preserve the low-cost serverless baseline; enable it as a product/security decision for prod.',
+        },
+      ],
+      true
+    );
+    NagSuppressions.addResourceSuppressions(
+      [categoriesTable, entitiesTable, flowsTable],
+      [
+        {
+          id: 'AwsSolutions-DDB3',
+          reason:
+            'Point-in-time recovery is enabled for prod and intentionally disabled for dev to keep the shared development stack low cost.',
         },
       ],
       true

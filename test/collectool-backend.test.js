@@ -2,8 +2,10 @@
 
 const cdk = require('aws-cdk-lib');
 const { Template, Match } = require('aws-cdk-lib/assertions');
-const { CollectoolBackendStack } = require('../lib/collectool-backend-stack');
-const { buildRuntimeResponse, validateFlow } = require('../src/runtime');
+const {
+  CollectoolBackendStack,
+} = require('../dist/lib/collectool-backend-stack');
+const { buildRuntimeResponse, validateFlow } = require('../dist/src/runtime');
 
 function makeStack() {
   const app = new cdk.App({

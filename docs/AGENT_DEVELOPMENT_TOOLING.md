@@ -38,34 +38,36 @@ Verificacion ejecutada:
 
 Luego de las decisiones humanas, se implemento el lote de tooling y workflow backend:
 
-- `npm run check`, typecheck `checkJs`, ESLint, Prettier y estandarizacion npm/Node 24.
+- Migracion de fuente backend a TypeScript (`bin`, `lib`, `src`) con build a `dist/`.
+- Bundling de Lambda desde `src/handler.ts` con `aws-lambda-nodejs` y `esbuild`.
+- `npm run check`, typecheck estricto de TypeScript, ESLint, Prettier y estandarizacion npm/Node 24.
 - CI, deploy dev/prod con OIDC, commitlint, changelog, Dependabot, CodeQL, audit y `cdk-nag`.
 - `AGENTS.md`, `.env.example`, PR template, documentacion de branch protection y guia final `docs/DEVELOPMENT_WORKFLOW.md`.
 - Fixtures JSON, JSON Schema y tests de contrato alineados con `collectool-admin`.
 - OpenAPI 3.1 en `docs/openapi.yaml`, validado con Redocly CLI e incluido en `npm run check`.
+- `cdk-nag` obligatorio dentro de `npm run check`, con supresiones puntuales documentadas en CDK.
 - Handler integration tests con `aws-sdk-client-mock`.
 - Reemplazo de marshaling DynamoDB manual por `DynamoDBDocumentClient`.
 - Observabilidad base: logs estructurados, access logs HTTP API y alarmas CloudWatch para Lambda errors, throttles y duration.
 - Seed policy final: `SEED_INITIAL_DATA=false` para shared dev/prod; `true` solo para local/manual sandbox.
-- Script reproducible `npm run github:configure-envs` para crear/actualizar GitHub Environments, secrets y variables.
+- Scripts reproducibles para GitHub Environments, stack outputs y health checks.
 
-Quedan como trabajo incremental posterior la division profunda de `src/handler.js` en router/services/repositories y la eventual decision humana sobre MFA/Cognito Plus/PITR en dev.
+Quedan como trabajo incremental posterior la division profunda de `src/handler.ts` en router/services/repositories y la decision humana de producto/seguridad sobre MFA/Cognito Plus.
 
 ## Recomendaciones
 
 ### 1. Script Unico `check`
 
-**Estado:** Pending
+**Estado:** Implemented
 
 **Que es:** Un comando canonico para validar el backend antes de cerrar una tarea o aprobar un PR.
 
-**Estado actual en el proyecto:** Hay `npm test` y `npm run synth:*`, pero no hay un baseline unico. El README lista comandos separados.
+**Estado actual en el proyecto:** `npm run check` existe y es usado por CI/deploy. Ejecuta typecheck, lint, formato, OpenAPI, tests y `cdk-nag` obligatorio.
 
 **Como se implementaria:**
 
-- Agregar a `package.json`:
-  - `check`: `npm run lint && npm run format:check && npm test && npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false`
-  - Ajustarlo si primero se implementan lint/formato.
+- Mantener en `package.json`:
+  - `check`: `npm run typecheck && npm run lint && npm run format:check && npm run openapi:lint && npm test && npm run security:iac`
 
 **Que mejoraria:** Reduce ambiguedad para humanos y agentes. Hace que el backend tenga una definicion clara de "listo".
 
@@ -73,7 +75,7 @@ Quedan como trabajo incremental posterior la division profunda de `src/handler.j
 
 **Prioridad sugerida:** Alta
 
-**Decision recomendada:** Implementar despues de agregar lint/formato.
+**Decision recomendada:** Mantenerlo como unica compuerta local/CI.
 
 **Criterios de aceptacion:**
 
@@ -87,33 +89,31 @@ Implementar
 
 ### 2. Typecheck Estricto
 
-**Estado:** Pending
+**Estado:** Implemented
 
 **Que es:** Verificacion estatica de tipos para infraestructura y Lambda.
 
-**Estado actual en el proyecto:** El backend esta en JavaScript CommonJS sin `tsconfig.json`, sin `// @ts-check` y sin JSDoc sistematico. Esto permite errores de shape en eventos API Gateway, DynamoDB items y responses.
+**Estado actual en el proyecto:** El backend fue migrado a TypeScript en `bin/`, `lib/` y `src/`. `tsconfig.json` mantiene `strict: true`, `npm run typecheck` valida fuentes y `npm run build` emite `dist/`.
 
 **Como se implementaria:**
 
-- Camino incremental recomendado:
-  - Agregar `tsconfig.json` con `allowJs: true`, `checkJs: true`, `noEmit: true`, `strict: true`.
-  - Agregar tipos JSDoc en `src/runtime.js`, `src/handler.js` y `lib/collectool-backend-stack.js`.
-  - Crear script `typecheck`: `tsc --noEmit`.
-- Camino de mayor alcance:
-  - Migrar a TypeScript (`src/*.ts`, `lib/*.ts`) y compilar/bundlear Lambda.
+- Mantener `tsconfig.json` para validacion y `tsconfig.build.json` para emision.
+- Mantener CDK ejecutando `npm run build` antes de iniciar `dist/bin/collectool-backend.js`.
+- Mantener Lambda bundling desde `src/handler.ts` con `aws-lambda-nodejs`.
 
 **Que mejoraria:** Detecta contratos rotos antes de deploy. Ayuda mucho a agentes a modificar handler/CDK sin inventar shapes.
 
-**Riesgos o costos:** `checkJs` sobre código actual puede producir varios errores iniciales por AWS SDK/CDK types. Migrar a TS aumenta setup.
+**Riesgos o costos:** El build ahora es requerido antes de CDK/Jest. Los tests importan modulos compilados desde `dist/`, por lo que `npm test` ejecuta build primero.
 
 **Prioridad sugerida:** Alta
 
-**Decision recomendada:** Empezar con `allowJs + checkJs`, no migrar todo a TS en el primer paso.
+**Decision recomendada:** Mantener TypeScript y avanzar gradualmente desde tipos amplios hacia contratos mas precisos.
 
 **Criterios de aceptacion:**
 
 - `npm run typecheck` existe.
-- `tsconfig.json` incluye `src`, `lib`, `bin`, `test`.
+- `tsconfig.json` incluye `src`, `lib` y `bin`.
+- `tsconfig.build.json` emite `dist/`.
 - `npm run typecheck` pasa en CI.
 
 ## DESICION HUMANA
@@ -837,16 +837,16 @@ Implementar.
 
 ### 24. Secret Scanning e IaC Security
 
-**Estado:** Pending
+**Estado:** Partially implemented
 
 **Que es:** Deteccion de secretos y configuraciones inseguras de infraestructura.
 
-**Estado actual en el proyecto:** No hay secret scanning documentado ni herramientas IaC como cdk-nag. El stack crea Cognito/IAM/API, por lo que los cambios pueden afectar seguridad.
+**Estado actual en el proyecto:** `cdk-nag` esta instalado, `npm run security:iac` existe y forma parte de `npm run check`. Secret scanning depende de settings de GitHub y queda documentado para habilitacion humana.
 
 **Como se implementaria:**
 
-- Habilitar GitHub secret scanning si el repo lo soporta.
-- Agregar `cdk-nag` en tests o synth para checks AWS Solutions.
+- Habilitar GitHub secret scanning si el repo/plan lo soporta.
+- Mantener `cdk-nag` obligatorio en `npm run check`.
 - Revisar suppressions explicitas para casos aceptados.
 
 **Que mejoraria:** Reduce riesgo de credenciales en commits y permisos excesivos.
@@ -855,7 +855,7 @@ Implementar.
 
 **Prioridad sugerida:** Media/Alta
 
-**Decision recomendada:** Implementar secret scanning primero; `cdk-nag` despues de CI base.
+**Decision recomendada:** Mantener `cdk-nag` obligatorio y habilitar secret scanning/push protection desde GitHub settings.
 
 **Criterios de aceptacion:**
 
@@ -868,20 +868,17 @@ Implementar y configurar
 
 ### 25. Scripts de Diagnostico
 
-**Estado:** Pending
+**Estado:** Implemented
 
 **Que es:** Comandos seguros para inspeccionar deploys.
 
-**Estado actual en el proyecto:** Docs muestran deploy y primer admin, pero no hay scripts para outputs, health check o diff.
+**Estado actual en el proyecto:** Existen `diff:dev`, `diff:prod`, `outputs:dev`, `outputs:prod` y `health`.
 
 **Como se implementaria:**
 
-- Agregar scripts:
-  - `diff:dev`: `cdk diff -c environment=dev`
-  - `diff:prod`: `cdk diff -c environment=prod`
-  - `outputs:dev`: `aws cloudformation describe-stacks ...`
-  - `health`: documentar `curl $API_URL/health`
-- O crear `scripts/diagnose.sh` si se prefiere.
+- Mantener `scripts/stack-outputs.sh` para CloudFormation outputs.
+- Mantener `scripts/health-check.sh` para `/health`.
+- Usar `AWS_PROFILE=castor` localmente cuando corresponda.
 
 **Que mejoraria:** Facilita soporte por humanos/agentes sin entrar a consola AWS.
 
@@ -889,12 +886,12 @@ Implementar y configurar
 
 **Prioridad sugerida:** Media
 
-**Decision recomendada:** Agregar `diff:*` primero porque no requiere deploy.
+**Decision recomendada:** Mantener scripts pequenos y seguros en vez de un script diagnostico grande.
 
 **Criterios de aceptacion:**
 
-- `npm run diff:dev` y `npm run diff:prod` existen.
-- Docs explican precondiciones de AWS CLI.
+- `npm run diff:dev`, `npm run diff:prod`, `npm run outputs:dev`, `npm run outputs:prod` y `npm run health -- <ApiUrl>` existen.
+- Docs explican precondiciones de AWS CLI y URL.
 
 ### DESICION HUMANA
 
@@ -1019,3 +1016,13 @@ Con respecto a estos ultimos puntos "Decisiones humanas antes de implementar" te
 - Si solo tuviesen que vivir en un solo lado deberian vivir entonces en le backend, en ese caso, solo para esto, tambien modificar collectool-admin.
 
 TODO el flujo final de desarrollo despues de todas estas implementaciones, asi como las herramientas instaladas y todo, tiene que quedar documentado para que tanto humanos como agentes puedan utilizarlo. Dividi la documentacion como se te sea mas sencillo.
+
+## Estado Final Tras Esta Decision
+
+- TypeScript queda como lenguaje fuente del backend (`bin`, `lib`, `src`) y `dist/` queda como artefacto generado no versionado.
+- CDK vive dentro del proyecto y ejecuta build antes de iniciar `dist/bin/collectool-backend.js`.
+- Lambda se bundlea desde `src/handler.ts` con `aws-lambda-nodejs` y `esbuild`.
+- `cdk-nag` es obligatorio: `npm run security:iac` forma parte de `npm run check` y de CI/deploy.
+- El backend es la fuente canonica de contratos: `docs/openapi.yaml`, `schemas/api-contracts.schema.json` y `test/fixtures/*.json`.
+- `collectool-admin` solo debe sincronizar expectativas frontend desde los contratos backend.
+- El flujo final para humanos/agentes vive en `docs/DEVELOPMENT_WORKFLOW.md` y las reglas operativas cortas viven en `AGENTS.md`.

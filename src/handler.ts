@@ -1,5 +1,7 @@
 'use strict';
 
+type AnyRecord = Record<string, any>;
+
 const {
   GetCommand,
   PutCommand,
@@ -148,7 +150,7 @@ async function putEntity(entity) {
   return entity;
 }
 
-async function listEntities(type) {
+async function listEntities(type?: string) {
   const result = await ddb.send(
     new ScanCommand({ TableName: table('ENTITIES_TABLE') })
   );
@@ -314,8 +316,8 @@ async function listAppUsers(query) {
 
 async function loadUsersForMetrics() {
   const maxUsers = Number(process.env.METRICS_USER_SCAN_LIMIT || 500);
-  const users = [];
-  let token;
+  const users: AnyRecord[] = [];
+  let token: string | undefined;
 
   while (users.length < maxUsers) {
     const result = await cognito.send(
@@ -352,7 +354,7 @@ function buildMetrics(users) {
     time: new Date(user.createdAt).getTime(),
   }));
 
-  const hourlyChart = [];
+  const hourlyChart: AnyRecord[] = [];
   for (let index = 23; index >= 0; index -= 1) {
     const hour = startOfHour(new Date(now.getTime() - index * 60 * 60 * 1000));
     const nextHour = new Date(hour.getTime() + 60 * 60 * 1000);
@@ -365,7 +367,7 @@ function buildMetrics(users) {
     });
   }
 
-  const dailyChart = [];
+  const dailyChart: AnyRecord[] = [];
   for (let index = 6; index >= 0; index -= 1) {
     const day = new Date(now);
     day.setUTCHours(0, 0, 0, 0);
@@ -463,7 +465,7 @@ async function getUser(username) {
 async function handleSession(event) {
   const { jwtClaims, groups } = assertAdmin(event);
   const token = bearerToken(event);
-  let userAttributes = {};
+  let userAttributes: AnyRecord = {};
 
   if (token) {
     try {
@@ -845,7 +847,7 @@ async function handleBootstrap(path, method) {
 
   const categories = await listCategories();
   const entities = await listEntities();
-  const flows = {};
+  const flows: AnyRecord = {};
   for (const category of categories) {
     flows[category.id] = await flowSummary(category.id);
   }

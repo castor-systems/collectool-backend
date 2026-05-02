@@ -21,7 +21,7 @@ Recommended GitHub repository settings for `collectool-backend`.
   - `Conventional commits`
   - `Dependency audit`
   - `CDK Nag`
-  - `CodeQL / Analyze JavaScript`
+  - `CodeQL / Analyze JavaScript/TypeScript`
 - Block force pushes and deletions.
 - Require the `production` GitHub Environment with manual approval for `Deploy Backend Prod`.
 
@@ -36,7 +36,7 @@ Configure these GitHub values before enabling deploy workflows:
 - Variable: `PROD_CORS_ALLOWED_ORIGINS`
 - Variable: `PROD_SEED_INITIAL_DATA` (`false`)
 
-Enable GitHub secret scanning/push protection from repository settings when the plan supports it. The repo also runs CodeQL and `npm audit` to catch dependency and JavaScript security issues.
+Enable GitHub secret scanning/push protection from repository settings when the plan supports it. The repo also runs CodeQL and `npm audit` to catch dependency and JavaScript/TypeScript security issues.
 
 You can configure the required GitHub Environments, secrets, and variables with:
 

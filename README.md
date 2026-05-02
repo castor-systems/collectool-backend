@@ -2,6 +2,8 @@
 
 AWS-first backend for `collectool-admin`, implemented from `BACKEND_REIMPLEMENTATION_SPEC.md`.
 
+The source is TypeScript. CDK compiles the app into `dist/`, and the Lambda handler is bundled from `src/handler.ts` with `aws-lambda-nodejs`/`esbuild`.
+
 ## Architecture
 
 - API Gateway HTTP API for low-cost HTTP routing.
@@ -68,7 +70,8 @@ See `docs/DEPLOYMENT.md` for CI examples.
 
 ## Commands
 
-- `npm run check`: local quality gate for typecheck, lint, format, tests, and dev synth.
+- `npm run build`: compile TypeScript into `dist/`.
+- `npm run check`: local and CI quality gate for typecheck, lint, format, OpenAPI, tests, and mandatory `cdk-nag`.
 - `npm run test`: Jest tests for CDK, runtime logic, contract fixtures, and handler integration with AWS mocks.
 - `npm run openapi:lint`: validate the OpenAPI 3.1 contract in `docs/openapi.yaml`.
 - `npm run openapi:bundle`: bundle the OpenAPI contract to `/tmp/collectool-openapi.yaml` for local inspection or tooling.
@@ -79,6 +82,9 @@ See `docs/DEPLOYMENT.md` for CI examples.
 - `npm run synth:prod`: synthesize the prod CloudFormation template.
 - `npm run deploy:dev`: deploy dev.
 - `npm run deploy:prod`: deploy prod.
+- `npm run outputs:dev`: print CloudFormation outputs for the dev stack.
+- `npm run outputs:prod`: print CloudFormation outputs for the prod stack.
+- `npm run health -- <api-url>`: call the deployed `/health` endpoint.
 
 Workflow and repository protection details live in `docs/BRANCH_PROTECTION.md`.
 

@@ -22,7 +22,7 @@ npm run lint
 npm run format:check
 npm run openapi:lint
 npm test
-npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false
+npm run security:iac
 ```
 
 The full final workflow for humans and agents is documented in `docs/DEVELOPMENT_WORKFLOW.md`.
@@ -35,6 +35,7 @@ Use npm only.
 - Do not add `pnpm-lock.yaml`, `yarn.lock`, or Bun lockfiles.
 - Install dependencies with `npm install` or `npm ci`.
 - Use Node 24 for local tooling and Lambda runtime.
+- Source code is TypeScript and compiles to `dist/`.
 
 ## Deploy Safety
 
@@ -60,11 +61,11 @@ Current non-secret inputs:
 
 Keep business logic and AWS integration separate.
 
-- Pure runtime logic belongs in `src/runtime.js` or other pure modules.
+- Pure runtime logic belongs in `src/runtime.ts` or other pure modules.
 - HTTP response helpers belong in `src/http/`.
 - AWS persistence belongs in `src/repositories/`.
 - Cognito/user/metrics behavior belongs in `src/services/`.
-- `src/handler.js` should stay as the Lambda composition root and request dispatcher.
+- `src/handler.ts` should stay as the Lambda composition root and request dispatcher.
 - CDK stack code belongs under `lib/`; split constructs when one stack file becomes hard to review.
 
 ## Testing
@@ -76,6 +77,7 @@ Use:
 - Contract fixtures under `test/fixtures/`.
 - JSON schemas under `schemas/` for backend/frontend contract validation.
 - OpenAPI 3.1 contract under `docs/openapi.yaml`, validated with Redocly CLI.
+- `collectool-backend` is the source of truth for shared backend/frontend contracts. Touch `collectool-admin` only when syncing frontend expectations to a backend contract change.
 
 Do not make tests call real AWS services.
 

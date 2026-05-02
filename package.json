@@ -6,11 +6,11 @@
     "npm": ">=10"
   },
   "bin": {
-    "collectool-backend": "bin/collectool-backend.js"
+    "collectool-backend": "dist/bin/collectool-backend.js"
   },
   "scripts": {
-    "build": "echo \"The build step is not required when using JavaScript!\" && exit 0",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run openapi:lint && npm test && npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false",
+    "build": "tsc -p tsconfig.build.json",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run openapi:lint && npm test && npm run security:iac",
     "audit:deps": "npm audit --audit-level=high",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
     "cdk": "cdk",
@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "github:configure-envs": "scripts/configure-github-environments.sh",
+    "health": "scripts/health-check.sh",
     "lint": "eslint .",
     "openapi:bundle": "redocly bundle docs/openapi.yaml --output /tmp/collectool-openapi.yaml",
     "openapi:lint": "redocly lint docs/openapi.yaml",
@@ -27,8 +28,10 @@
     "synth:prod": "cdk synth -c environment=prod",
     "deploy:dev": "cdk deploy -c environment=dev",
     "deploy:prod": "cdk deploy -c environment=prod",
+    "outputs:dev": "scripts/stack-outputs.sh dev",
+    "outputs:prod": "scripts/stack-outputs.sh prod",
     "security:iac": "cdk synth -c environment=dev -c securityChecks=true -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false",
-    "test": "jest",
+    "test": "npm run build && jest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -43,11 +46,13 @@
     "aws-sdk-client-mock": "^4.1.0",
     "cdk-nag": "^2.38.2",
     "conventional-changelog": "^7.2.0",
+    "esbuild": "^0.28.0",
     "eslint": "^10.3.0",
     "globals": "^17.6.0",
     "jest": "^30",
     "prettier": "^3.8.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.1"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1041.0",

@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 export default [
   {
@@ -8,11 +9,13 @@ export default [
       'cdk.out/**',
       '.cdk.staging/**',
       'coverage/**',
+      'dist/**',
     ],
   },
   js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    files: ['**/*.js'],
+    files: ['**/*.{cjs,js,ts}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
@@ -22,9 +25,27 @@ export default [
       },
     },
     rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-var-requires': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
       curly: ['error', 'all'],
       eqeqeq: ['error', 'always'],
       'no-console': ['warn', { allow: ['info', 'warn', 'error'] }],
+      'no-unused-vars': 'off',
+    },
+  },
+  {
+    files: ['**/*.{cjs,js}'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
       'no-unused-vars': [
         'warn',
         {

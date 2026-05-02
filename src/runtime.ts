@@ -1,5 +1,7 @@
 'use strict';
 
+type AnyRecord = Record<string, any>;
+
 const VALID_QUESTION_TYPES = new Set([
   'SINGLE_SELECT',
   'MULTI_SELECT',
@@ -12,9 +14,9 @@ const VALID_OPERATORS = new Set([
   'IS_SET',
 ]);
 
-function unique(values) {
-  const seen = new Set();
-  const result = [];
+function unique(values: any[]): any[] {
+  const seen = new Set<any>();
+  const result: any[] = [];
 
   for (const value of values) {
     if (!seen.has(value)) {
@@ -26,13 +28,13 @@ function unique(values) {
   return result;
 }
 
-function questionMap(flow) {
+function questionMap(flow: AnyRecord): Map<string, AnyRecord> {
   return new Map(
     (flow.questions || []).map((question) => [question.id, question])
   );
 }
 
-function getAnswerValues(answer) {
+function getAnswerValues(answer: any): any[] {
   if (answer === undefined || answer === null || answer === '') {
     return [];
   }
@@ -42,7 +44,7 @@ function getAnswerValues(answer) {
     : [answer];
 }
 
-function isConditionMet(rule, answers) {
+function isConditionMet(rule: AnyRecord, answers: AnyRecord): boolean {
   const condition = rule.condition || {};
   const answer = answers[condition.question_id];
   const expectedValues = Array.isArray(condition.value) ? condition.value : [];
@@ -64,13 +66,16 @@ function isConditionMet(rule, answers) {
   return false;
 }
 
-function computeVisibleQuestionIds(flow, answers) {
+function computeVisibleQuestionIds(
+  flow: AnyRecord,
+  answers: AnyRecord
+): string[] {
   const questionsById = questionMap(flow);
-  const visible = [];
-  const visibleSet = new Set();
-  const shownGroups = new Set();
+  const visible: string[] = [];
+  const visibleSet = new Set<string>();
+  const shownGroups = new Set<string>();
 
-  function addQuestion(id) {
+  function addQuestion(id: string) {
     if (questionsById.has(id) && !visibleSet.has(id)) {
       visibleSet.add(id);
       visible.push(id);
@@ -98,7 +103,9 @@ function computeVisibleQuestionIds(flow, answers) {
           continue;
         }
 
-        const group = (flow.question_groups || {})[action.target];
+        const group = (flow.question_groups || {})[action.target] as
+          | AnyRecord
+          | undefined;
         if (!group) {
           continue;
         }
@@ -115,10 +122,14 @@ function computeVisibleQuestionIds(flow, answers) {
   return visible;
 }
 
-function normalizeAnswers(flow, visibleQuestionIds, answers) {
+function normalizeAnswers(
+  flow: AnyRecord,
+  visibleQuestionIds: string[],
+  answers: AnyRecord
+): AnyRecord {
   const questionsById = questionMap(flow);
   const visibleSet = new Set(visibleQuestionIds);
-  const normalized = {};
+  const normalized: AnyRecord = {};
 
   for (const [questionId, answer] of Object.entries(answers || {})) {
     if (!visibleSet.has(questionId)) {
@@ -148,9 +159,13 @@ function normalizeAnswers(flow, visibleQuestionIds, answers) {
   return normalized;
 }
 
-function collectTags(flow, visibleQuestionIds, answers) {
+function collectTags(
+  flow: AnyRecord,
+  visibleQuestionIds: string[],
+  answers: AnyRecord
+): any[] {
   const questionsById = questionMap(flow);
-  const tags = [];
+  const tags: any[] = [];
 
   for (const questionId of visibleQuestionIds) {
     const question = questionsById.get(questionId);
@@ -169,7 +184,7 @@ function collectTags(flow, visibleQuestionIds, answers) {
   return unique(tags);
 }
 
-function answerSatisfiesQuestion(question, answer) {
+function answerSatisfiesQuestion(question: AnyRecord, answer: any): boolean {
   const values = getAnswerValues(answer);
   if (!question.required) {
     return true;
@@ -178,7 +193,7 @@ function answerSatisfiesQuestion(question, answer) {
   return values.length > 0;
 }
 
-function buildRuntimeResponse(flow, answers) {
+function buildRuntimeResponse(flow: AnyRecord, answers: AnyRecord) {
   const firstVisibleIds = computeVisibleQuestionIds(flow, answers || {});
   const normalizedAnswers = normalizeAnswers(
     flow,
@@ -194,7 +209,7 @@ function buildRuntimeResponse(flow, answers) {
   const questionsById = questionMap(flow);
   const visibleQuestions = visibleQuestionIds
     .map((questionId) => questionsById.get(questionId))
-    .filter(Boolean);
+    .filter((question): question is AnyRecord => Boolean(question));
   const nextQuestion =
     visibleQuestions.find(
       (question) =>
@@ -211,9 +226,9 @@ function buildRuntimeResponse(flow, answers) {
   };
 }
 
-function validateFlow(flow, entities) {
-  const errors = [];
-  const ids = new Set();
+function validateFlow(flow: AnyRecord, entities: AnyRecord[] = []): string[] {
+  const errors: string[] = [];
+  const ids = new Set<string>();
   const entityIds = new Set((entities || []).map((entity) => entity.id));
 
   for (const question of flow.questions || []) {
@@ -231,7 +246,7 @@ function validateFlow(flow, entities) {
       errors.push(`Invalid question type for ${question.id}`);
     }
 
-    const optionValues = new Set();
+    const optionValues = new Set<any>();
     for (const option of question.options || []) {
       if (optionValues.has(option.value)) {
         errors.push(
@@ -254,7 +269,9 @@ function validateFlow(flow, entities) {
     }
   }
 
-  for (const [groupId, group] of Object.entries(flow.question_groups || {})) {
+  for (const [groupId, group] of Object.entries(
+    flow.question_groups || {}
+  ) as Array<[string, AnyRecord]>) {
     for (const questionId of group.questions || []) {
       if (!ids.has(questionId)) {
         errors.push(

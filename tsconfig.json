@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": true,
+    "checkJs": false,
     "noEmit": true,
     "strict": true,
     "target": "ES2022",
@@ -15,10 +15,11 @@
     "types": ["node", "jest"]
   },
   "include": [
-    "bin/**/*.js",
-    "lib/**/*.js",
-    "src/**/*.js",
+    "bin/**/*.ts",
+    "lib/**/*.ts",
+    "src/**/*.ts",
     "test/**/*.js",
     "jest.config.js"
-  ]
+  ],
+  "exclude": ["dist", "cdk.out", "node_modules"]
 }

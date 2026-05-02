@@ -26,6 +26,8 @@ The executable OpenAPI contract lives in [`docs/openapi.yaml`](openapi.yaml) and
 npm run openapi:lint
 ```
 
+This backend repository is the source of truth for shared API contracts. When `collectool-admin` needs contract updates, change the backend OpenAPI/schema/fixtures first and then sync the frontend expectations to this source.
+
 ## Admin Session
 
 ```http

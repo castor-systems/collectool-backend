@@ -1,5 +1,5 @@
 {
-  "app": "node bin/collectool-backend.js",
+  "app": "npm run build && node dist/bin/collectool-backend.js",
   "watch": {
     "include": ["**"],
     "exclude": [

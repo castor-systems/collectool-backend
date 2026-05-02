@@ -78,7 +78,7 @@ beforeEach(() => {
   ddbMock.reset();
   cognitoMock.reset();
   configureEnvironment();
-  handler = require('../src/handler').handler;
+  handler = require('../dist/src/handler').handler;
 });
 
 test('health route does not require Cognito or DynamoDB', async () => {

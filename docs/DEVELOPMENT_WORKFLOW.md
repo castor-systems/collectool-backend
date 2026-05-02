@@ -21,12 +21,13 @@ Infrastructure changes must originate here.
 - AWS CDK v2.
 - Jest for unit, CDK, contract, and handler integration tests.
 - AWS SDK v3 and `aws-sdk-client-mock` for mocked handler tests.
-- TypeScript `checkJs` typecheck for JavaScript.
+- TypeScript strict typecheck for source files.
 - ESLint flat config.
 - Prettier.
 - Redocly CLI for OpenAPI 3.1 validation.
 - AJV for JSON Schema contract tests.
 - `cdk-nag` for AWS Solutions security checks.
+- `esbuild` through `aws-lambda-nodejs` for Lambda bundling.
 - Commitlint and Conventional Commits.
 - Conventional changelog generation.
 - GitHub Actions CI, deploy, security, changelog, CodeQL, and Dependabot workflows.
@@ -65,6 +66,12 @@ nvm use
 
 Use `.env.example` as the non-secret deploy-time reference.
 
+Build output is generated under `dist/` and must not be committed:
+
+```bash
+npm run build
+```
+
 ## Daily Development Flow
 
 1. Pull the latest target branch.
@@ -85,7 +92,7 @@ npm run lint
 npm run format:check
 npm run openapi:lint
 npm test
-npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false
+npm run security:iac
 ```
 
 ## API Contract Flow
@@ -98,6 +105,8 @@ When adding or changing an endpoint, update all relevant contract files in the s
 - `test/fixtures/*.json`
 - handler or service integration tests
 
+`collectool-backend` is the source of truth for shared API contracts. If `collectool-admin` must change, update the backend contract first and then sync the frontend fixtures/types/docs from it.
+
 Validate OpenAPI:
 
 ```bash
@@ -109,7 +118,8 @@ The bundle command writes to `/tmp/collectool-openapi.yaml` for local inspection
 
 ## Testing Strategy
 
-- Pure logic: test small functions in `src/runtime.js` and future service modules.
+- Pure logic: test small functions in `src/runtime.ts` and future service modules.
+- TypeScript source compiles to `dist/`; Jest imports compiled modules.
 - Handler integration: call Lambda handler directly with API Gateway fixtures and mock AWS SDK clients.
 - Contracts: validate JSON fixtures against JSON Schema with AJV.
 - Infrastructure: assert synthesized CloudFormation through CDK assertions.
@@ -120,6 +130,8 @@ npm run security:iac
 ```
 
 Do not make tests call real AWS services.
+
+`cdk-nag` is part of `npm run check`; do not bypass it for PR-ready work. Suppressions must stay targeted and include a concrete reason in the CDK code.
 
 ## Infrastructure Change Flow
 
@@ -187,6 +199,22 @@ Production:
 4. `Deploy Backend Prod` runs with OIDC and deploys `environment=prod`.
 5. Production should require GitHub Environment approval.
 
+## Diagnostics
+
+After a deploy, inspect stack outputs and health:
+
+```bash
+AWS_PROFILE=castor npm run outputs:dev
+npm run health -- <ApiUrl>
+```
+
+For production:
+
+```bash
+AWS_PROFILE=castor npm run outputs:prod
+npm run health -- <ApiUrl>
+```
+
 ## First Admin User
 
 After a fresh stack deploy, create the first admin user manually and attach it to `collectool-admins` or `admin`. See `docs/DEPLOYMENT.md`.
@@ -208,6 +236,7 @@ Every PR should answer:
 Agents should:
 
 - Work only in `collectool-backend` unless explicitly asked otherwise.
+- The only current exception is shared API contract alignment: backend remains canonical, and frontend docs/fixtures may be touched only when a backend contract decision requires it.
 - Keep generated artifacts out of commits.
 - Never deploy unless explicitly asked.
 - Never enable seed data in shared dev/prod.

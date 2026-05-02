@@ -11,7 +11,8 @@ The stack reads the environment from CDK context:
 
 Recommended branch mapping:
 
-- feature branches and develop workflows: `dev`
+- feature branches target `dev`
+- `dev`: shared development stack
 - `main`: `prod`
 
 Resource names include the environment, for example `collectool-dev-api` and `collectool-prod-api`.
@@ -39,6 +40,8 @@ npm run deploy:dev -- \
 
 The backend stack creates Cognito. Do not pass pool ids for normal deployments.
 
+The CDK app is TypeScript. Use the npm scripts instead of invoking `node bin/...` directly; `cdk.json` runs `npm run build` before the app starts.
+
 ## CI/CD Example
 
 Development deployment:
@@ -56,12 +59,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: collectool-backend/package-lock.json
       - run: npm ci
         working-directory: collectool-backend
-      - run: npm test
+      - run: npm run check
         working-directory: collectool-backend
       - run: npm run deploy:dev -- --require-approval never
         working-directory: collectool-backend
@@ -85,12 +88,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: collectool-backend/package-lock.json
       - run: npm ci
         working-directory: collectool-backend
-      - run: npm test
+      - run: npm run check
         working-directory: collectool-backend
       - run: npm run deploy:prod -- --require-approval never
         working-directory: collectool-backend
@@ -149,5 +152,14 @@ aws cognito-idp admin-set-user-password \
 
 - Prod DynamoDB tables are retained on stack deletion.
 - Dev DynamoDB tables are destroyed with the stack.
+- Prod DynamoDB tables enable point-in-time recovery; dev keeps it disabled to reduce shared environment cost.
+- `npm run security:iac` is mandatory in `npm run check` and CI. Current `cdk-nag` suppressions are intentional and documented in CDK with reasons.
 - Metrics are computed from Cognito on demand and capped. If the user base grows, add scheduled aggregate snapshots before increasing the cap.
 - The public runtime never returns draft flows.
+
+Useful diagnostics:
+
+```bash
+AWS_PROFILE=castor npm run outputs:dev
+npm run health -- https://xxxx.execute-api.us-east-1.amazonaws.com
+```

@@ -92,7 +92,7 @@ Set `-c seedInitialData=false` during deploy if automatic seed is not desired.
 
 ## Runtime Logic
 
-`src/runtime.js` is storage-independent and shared by admin preview and public runtime:
+`src/runtime.ts` is storage-independent and shared by admin preview and public runtime:
 
 - evaluates conditional groups
 - normalizes answers
