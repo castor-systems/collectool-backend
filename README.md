@@ -11,6 +11,8 @@ The source is TypeScript. CDK compiles the app into `dist/`, and the Lambda hand
 - DynamoDB on-demand tables for Collection Builder categories, entities, and flows.
 - Cognito user pools and JWT authorizer on every `/admin/*` route.
 - Cognito ListUsers/Admin APIs for user metrics and user management.
+- Private S3 bucket and CloudFront distribution for the `collectool-admin` static frontend.
+- GitHub OIDC role for the admin repo to sync static assets and invalidate CloudFront.
 
 More detail: `docs/ARCHITECTURE.md`.
 
@@ -21,6 +23,7 @@ Pass these values with CDK context or environment variables:
 ```bash
 ALLOWED_ADMIN_GROUPS=admin,collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.collectool.example
+ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
 ```
 
@@ -56,6 +59,8 @@ Use the stack outputs to configure `collectool-admin`:
 - `ApiUrl` -> `NEXT_PUBLIC_COLLECTOOL_API_URL`
 - stack region -> `NEXT_PUBLIC_ADMIN_COGNITO_REGION`
 - `AdminUserPoolClientId` -> `NEXT_PUBLIC_ADMIN_COGNITO_CLIENT_ID`
+- `AdminSiteUrl` -> deployed admin URL
+- `AdminDeployRoleArn` -> `AWS_DEPLOY_ROLE_ARN` secret in the matching `collectool-admin` GitHub Environment
 
 Create the first admin user after deploy and add it to `collectool-admins` or `admin`. See `docs/DEPLOYMENT.md`.
 
@@ -87,6 +92,8 @@ See `docs/DEPLOYMENT.md` for CI examples.
 - `npm run health -- <api-url>`: call the deployed `/health` endpoint.
 
 Workflow and repository protection details live in `docs/BRANCH_PROTECTION.md`.
+
+The admin frontend deploy is implemented in `collectool-admin/.github/workflows/deploy-s3.yml`; its S3 bucket, CloudFront distribution, and GitHub OIDC role are created here by CDK.
 
 The HTTP API contract lives in `docs/openapi.yaml`. Update it together with `docs/API_CONTRACTS.md`, `schemas/api-contracts.schema.json`, and fixtures whenever endpoint behavior changes.
 

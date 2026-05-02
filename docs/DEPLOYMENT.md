@@ -24,6 +24,7 @@ Provide these as CDK context or environment variables:
 ```bash
 ALLOWED_ADMIN_GROUPS=admin,collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.example.com
+ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
 ```
 
@@ -41,6 +42,14 @@ npm run deploy:dev -- \
 The backend stack creates Cognito. Do not pass pool ids for normal deployments.
 
 The CDK app is TypeScript. Use the npm scripts instead of invoking `node bin/...` directly; `cdk.json` runs `npm run build` before the app starts.
+
+The backend stack also creates the admin frontend hosting resources:
+
+- private S3 bucket
+- CloudFront distribution
+- GitHub OIDC role for `collectool-admin` deploys
+
+The CloudFront admin URL is automatically added to API Gateway CORS for the same environment.
 
 ## CI/CD Example
 
@@ -106,7 +115,7 @@ Use OIDC-based AWS credentials in CI instead of long-lived AWS keys.
 
 ## Admin Frontend Wiring
 
-After deployment, copy the CloudFormation outputs into the admin app environment:
+For local development, copy the CloudFormation outputs into the admin app environment:
 
 ```bash
 NEXT_PUBLIC_COLLECTOOL_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com
@@ -117,6 +126,34 @@ NEXT_PUBLIC_APP_ENV=development
 ```
 
 The admin login still happens directly against the admin Cognito pool created by this stack. The backend validates that access token through API Gateway and checks admin groups in Lambda.
+
+For GitHub Actions deploys, configure the `collectool-admin` repository environments:
+
+`development` secret:
+
+```text
+AWS_DEPLOY_ROLE_ARN=<dev AdminDeployRoleArn output>
+```
+
+`development` variable:
+
+```text
+AWS_REGION=us-east-1
+```
+
+`production` secret:
+
+```text
+AWS_DEPLOY_ROLE_ARN=<prod AdminDeployRoleArn output>
+```
+
+`production` variable:
+
+```text
+AWS_REGION=us-east-1
+```
+
+The admin workflow reads `ApiUrl`, `AdminUserPoolClientId`, `AdminSiteBucketName`, and `AdminSiteDistributionId` from this backend stack at deploy time, then runs `next build`, syncs `out/` to S3, and invalidates CloudFront.
 
 ## First Admin User
 
@@ -153,6 +190,7 @@ aws cognito-idp admin-set-user-password \
 - Prod DynamoDB tables are retained on stack deletion.
 - Dev DynamoDB tables are destroyed with the stack.
 - Prod DynamoDB tables enable point-in-time recovery; dev keeps it disabled to reduce shared environment cost.
+- The admin S3 bucket is retained in prod and destroyable in dev. Empty non-prod buckets before deleting a stack if CloudFormation cannot remove non-empty buckets.
 - `npm run security:iac` is mandatory in `npm run check` and CI. Current `cdk-nag` suppressions are intentional and documented in CDK with reasons.
 - Metrics are computed from Cognito on demand and capped. If the user base grows, add scheduled aggregate snapshots before increasing the cap.
 - The public runtime never returns draft flows.

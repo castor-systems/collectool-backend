@@ -18,6 +18,9 @@ The backend is designed for AWS-first operation, low idle cost, and compatibilit
   - `collectool-{env}-collection-categories`
   - `collectool-{env}-collection-entities`
   - `collectool-{env}-collection-flows`
+- `AWS::S3::Bucket`: private bucket for the `collectool-admin` static export.
+- `AWS::CloudFront::Distribution`: HTTPS CDN in front of the private admin bucket.
+- `AWS::IAM::Role`: GitHub OIDC role for `collectool-admin` deploys.
 
 ## Data Model
 
@@ -68,6 +71,23 @@ Public runtime routes under `/collection-builder/*` do not require admin auth an
 - `AdminUserPoolClientId`
 - `AppUserPoolId`
 - `AppUserPoolClientId`
+
+## Admin Frontend Hosting
+
+`collectool-backend` also owns the admin static hosting infrastructure:
+
+- S3 is private, encrypted with S3-managed encryption, and blocks public access.
+- CloudFront uses Origin Access Control and redirects viewers to HTTPS.
+- CloudFront maps `403` and `404` to `index.html` so the static Next.js admin can handle client-side navigation.
+- The admin deploy role trusts `repo:castor-systems/collectool-admin:environment:{development|production}` through GitHub OIDC.
+- The backend API CORS allowlist automatically includes the CloudFront admin URL for the same environment.
+
+Relevant outputs:
+
+- `AdminSiteBucketName`
+- `AdminSiteDistributionId`
+- `AdminSiteUrl`
+- `AdminDeployRoleArn`
 
 The stack does not create a permanent admin password. Create the first admin user after deployment and attach it to `collectool-admins` or `admin`.
 

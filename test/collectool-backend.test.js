@@ -89,6 +89,8 @@ test('CDK stack creates serverless AWS backend resources', () => {
   template.resourceCountIs('AWS::Cognito::UserPoolClient', 2);
   template.resourceCountIs('AWS::Cognito::UserPoolGroup', 2);
   template.resourceCountIs('AWS::DynamoDB::Table', 3);
+  template.resourceCountIs('AWS::S3::Bucket', 1);
+  template.resourceCountIs('AWS::CloudFront::Distribution', 1);
   template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
     GroupName: 'admin',
   });
@@ -112,6 +114,29 @@ test('CDK stack creates serverless AWS backend resources', () => {
   template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', {
     AuthorizerType: 'JWT',
     IdentitySource: ['$request.header.Authorization'],
+  });
+  template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    DistributionConfig: Match.objectLike({
+      DefaultRootObject: 'index.html',
+      PriceClass: 'PriceClass_100',
+    }),
+  });
+  template.hasResourceProperties('AWS::IAM::Role', {
+    RoleName: 'collectool-dev-admin-github-actions',
+    AssumeRolePolicyDocument: Match.objectLike({
+      Statement: Match.arrayWith([
+        Match.objectLike({
+          Action: 'sts:AssumeRoleWithWebIdentity',
+          Condition: {
+            StringEquals: {
+              'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+              'token.actions.githubusercontent.com:sub':
+                'repo:castor-systems/collectool-admin:environment:development',
+            },
+          },
+        }),
+      ]),
+    }),
   });
 });
 

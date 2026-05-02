@@ -6,6 +6,8 @@ Use this file as the local operating manual for automatic agents working in `col
 
 `collectool-backend` owns the AWS infrastructure and backend API for Collectool. It defines Cognito, API Gateway, Lambda, DynamoDB, deployment behavior, and the admin/public Collection Builder runtime.
 
+It also owns the S3 bucket, CloudFront distribution, and GitHub OIDC role used to deploy `collectool-admin`.
+
 ## Required Baseline
 
 Before finishing broad code or infrastructure changes, run:
@@ -56,6 +58,7 @@ Current non-secret inputs:
 - `ALLOWED_ADMIN_GROUPS`
 - `CORS_ALLOWED_ORIGINS`
 - `SEED_INITIAL_DATA`
+- `ADMIN_GITHUB_REPOSITORY`
 
 ## Code Organization
 

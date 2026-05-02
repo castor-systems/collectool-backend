@@ -11,6 +11,8 @@ This document is the final operating guide for humans and agents working on `col
 - Cognito admin and app user pools.
 - DynamoDB tables.
 - CloudWatch logs and alarms.
+- S3 and CloudFront for the admin frontend.
+- GitHub OIDC role used by `collectool-admin` to publish static assets.
 - GitHub Actions deployment workflow.
 
 Infrastructure changes must originate here.
@@ -28,6 +30,7 @@ Infrastructure changes must originate here.
 - AJV for JSON Schema contract tests.
 - `cdk-nag` for AWS Solutions security checks.
 - `esbuild` through `aws-lambda-nodejs` for Lambda bundling.
+- S3 + CloudFront static hosting for `collectool-admin`.
 - Commitlint and Conventional Commits.
 - Conventional changelog generation.
 - GitHub Actions CI, deploy, security, changelog, CodeQL, and Dependabot workflows.
@@ -199,6 +202,13 @@ Production:
 4. `Deploy Backend Prod` runs with OIDC and deploys `environment=prod`.
 5. Production should require GitHub Environment approval.
 
+Admin frontend:
+
+1. Backend deploy creates or updates `AdminSiteBucketName`, `AdminSiteDistributionId`, `AdminSiteUrl`, and `AdminDeployRoleArn`.
+2. Configure the matching `collectool-admin` GitHub Environment with `AWS_DEPLOY_ROLE_ARN=<AdminDeployRoleArn>` and `AWS_REGION=us-east-1`.
+3. Push to `dev` or `main` in `collectool-admin`.
+4. `Deploy Admin To S3` assumes the backend-created role, reads backend stack outputs, builds static Next output, syncs `out/` to S3, and invalidates CloudFront.
+
 ## Diagnostics
 
 After a deploy, inspect stack outputs and health:
@@ -237,6 +247,7 @@ Agents should:
 
 - Work only in `collectool-backend` unless explicitly asked otherwise.
 - The only current exception is shared API contract alignment: backend remains canonical, and frontend docs/fixtures may be touched only when a backend contract decision requires it.
+- The admin deploy workflow is another explicit exception: backend owns the AWS infra, while `collectool-admin` owns the static build workflow that publishes into those resources.
 - Keep generated artifacts out of commits.
 - Never deploy unless explicitly asked.
 - Never enable seed data in shared dev/prod.

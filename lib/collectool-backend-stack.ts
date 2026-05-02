@@ -12,12 +12,15 @@ const apigatewayv2 = require('aws-cdk-lib/aws-apigatewayv2');
 const authorizers = require('aws-cdk-lib/aws-apigatewayv2-authorizers');
 const integrations = require('aws-cdk-lib/aws-apigatewayv2-integrations');
 const cloudwatch = require('aws-cdk-lib/aws-cloudwatch');
+const cloudfront = require('aws-cdk-lib/aws-cloudfront');
+const origins = require('aws-cdk-lib/aws-cloudfront-origins');
 const cognito = require('aws-cdk-lib/aws-cognito');
 const dynamodb = require('aws-cdk-lib/aws-dynamodb');
 const iam = require('aws-cdk-lib/aws-iam');
 const lambda = require('aws-cdk-lib/aws-lambda');
 const lambdaNodejs = require('aws-cdk-lib/aws-lambda-nodejs');
 const logs = require('aws-cdk-lib/aws-logs');
+const s3 = require('aws-cdk-lib/aws-s3');
 const { NagSuppressions } = require('cdk-nag');
 
 class CollectoolBackendStack extends Stack {
@@ -44,6 +47,12 @@ class CollectoolBackendStack extends Stack {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean);
+    const adminGithubRepository =
+      this.node.tryGetContext('adminGithubRepository') ||
+      process.env.ADMIN_GITHUB_REPOSITORY ||
+      'castor-systems/collectool-admin';
+    const githubEnvironment =
+      environment === 'prod' ? 'production' : 'development';
 
     const removalPolicy = isProd ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
     const pointInTimeRecoverySpecification = {
@@ -196,6 +205,101 @@ class CollectoolBackendStack extends Stack {
         : logs.RetentionDays.ONE_WEEK,
       removalPolicy,
     });
+    const adminSiteBucket = new s3.Bucket(this, 'AdminSiteBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      versioned: isProd,
+      removalPolicy,
+    });
+    const adminSiteDistribution = new cloudfront.Distribution(
+      this,
+      'AdminSiteDistribution',
+      {
+        comment: `collectool ${environment} admin frontend`,
+        defaultRootObject: 'index.html',
+        defaultBehavior: {
+          origin:
+            origins.S3BucketOrigin.withOriginAccessControl(adminSiteBucket),
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+          compress: true,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy:
+            cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
+        },
+        errorResponses: [
+          {
+            httpStatus: 403,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+            ttl: Duration.minutes(5),
+          },
+          {
+            httpStatus: 404,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+            ttl: Duration.minutes(5),
+          },
+        ],
+        httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+        minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+        priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      }
+    );
+    const adminSiteUrl = `https://${adminSiteDistribution.distributionDomainName}`;
+    const effectiveCorsAllowedOrigins = Array.from(
+      new Set([...corsAllowedOrigins, adminSiteUrl])
+    );
+    const githubOidcProviderArn = `arn:${Stack.of(this).partition}:iam::${Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`;
+    const adminDeployRole = new iam.Role(this, 'AdminDeployRole', {
+      roleName: `collectool-${environment}-admin-github-actions`,
+      description: `Deploy collectool-admin static assets for ${environment}.`,
+      assumedBy: new iam.WebIdentityPrincipal(githubOidcProviderArn, {
+        StringEquals: {
+          'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+          'token.actions.githubusercontent.com:sub': `repo:${adminGithubRepository}:environment:${githubEnvironment}`,
+        },
+      }),
+    });
+    adminDeployRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetBucketLocation', 's3:ListBucket'],
+        resources: [adminSiteBucket.bucketArn],
+      })
+    );
+    adminDeployRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:DeleteObject', 's3:GetObject', 's3:PutObject'],
+        resources: [adminSiteBucket.arnForObjects('*')],
+      })
+    );
+    adminDeployRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['cloudfront:CreateInvalidation'],
+        resources: [
+          Stack.of(this).formatArn({
+            service: 'cloudfront',
+            region: '',
+            resource: 'distribution',
+            resourceName: adminSiteDistribution.distributionId,
+          }),
+        ],
+      })
+    );
+    adminDeployRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['cloudformation:DescribeStacks'],
+        resources: [
+          Stack.of(this).formatArn({
+            service: 'cloudformation',
+            resource: 'stack',
+            resourceName: `${Stack.of(this).stackName}/*`,
+          }),
+        ],
+      })
+    );
 
     const apiHandler = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
       functionName: `collectool-${environment}-api`,
@@ -297,7 +401,7 @@ class CollectoolBackendStack extends Stack {
           apigatewayv2.CorsHttpMethod.PUT,
           apigatewayv2.CorsHttpMethod.OPTIONS,
         ],
-        allowOrigins: corsAllowedOrigins,
+        allowOrigins: effectiveCorsAllowedOrigins,
         maxAge: Duration.days(1),
       },
     });
@@ -396,6 +500,58 @@ class CollectoolBackendStack extends Stack {
       ],
       true
     );
+    NagSuppressions.addResourceSuppressions(
+      [adminSiteBucket],
+      [
+        {
+          id: 'AwsSolutions-S1',
+          reason:
+            'CloudFront distribution metrics are enough for the first low-cost admin hosting baseline; S3 server access logs add another bucket and storage cost.',
+        },
+      ],
+      true
+    );
+    NagSuppressions.addResourceSuppressions(
+      adminSiteDistribution,
+      [
+        {
+          id: 'AwsSolutions-CFR1',
+          reason:
+            'The admin app is internet-facing for authorized administrators; country restrictions are a business/compliance decision and are not required for the first hosted baseline.',
+        },
+        {
+          id: 'AwsSolutions-CFR2',
+          reason:
+            'AWS WAF is deferred to avoid fixed monthly cost while the admin surface is low-traffic and protected by Cognito; add it when threat model or traffic justifies it.',
+        },
+        {
+          id: 'AwsSolutions-CFR3',
+          reason:
+            'CloudFront access logs are deferred to keep the admin static hosting baseline low cost; enable them when operational analytics require it.',
+        },
+        {
+          id: 'AwsSolutions-CFR4',
+          reason:
+            'The distribution enforces TLSv1.2_2021 as the minimum protocol version.',
+        },
+      ],
+      true
+    );
+    NagSuppressions.addResourceSuppressions(
+      adminDeployRole,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason:
+            'The GitHub role needs to publish and delete arbitrary static export objects under the dedicated admin site bucket, and CloudFormation stack ARNs include the generated stack id suffix.',
+          appliesTo: [
+            'Resource::<AdminSiteBucket6BE9C9FA.Arn>/*',
+            `Resource::arn:aws:cloudformation:us-east-1:<AWS::AccountId>:stack/CollectoolBackendStack-${environment}/*`,
+          ],
+        },
+      ],
+      true
+    );
     NagSuppressions.addStackSuppressions(this, [
       {
         id: 'AwsSolutions-APIG4',
@@ -408,6 +564,23 @@ class CollectoolBackendStack extends Stack {
       value: httpApi.apiEndpoint,
       description:
         'Use this value as NEXT_PUBLIC_COLLECTOOL_API_URL in collectool-admin.',
+    });
+    new CfnOutput(this, 'AdminSiteBucketName', {
+      value: adminSiteBucket.bucketName,
+      description: 'S3 bucket where collectool-admin static export is synced.',
+    });
+    new CfnOutput(this, 'AdminSiteDistributionId', {
+      value: adminSiteDistribution.distributionId,
+      description: 'CloudFront distribution id for admin invalidations.',
+    });
+    new CfnOutput(this, 'AdminSiteUrl', {
+      value: adminSiteUrl,
+      description: 'CloudFront URL for collectool-admin.',
+    });
+    new CfnOutput(this, 'AdminDeployRoleArn', {
+      value: adminDeployRole.roleArn,
+      description:
+        'Use this as AWS_DEPLOY_ROLE_ARN in the collectool-admin GitHub Environment.',
     });
     new CfnOutput(this, 'CategoriesTableName', {
       value: categoriesTable.tableName,
