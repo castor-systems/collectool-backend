@@ -78,8 +78,10 @@ function claimGroups(jwtClaims) {
 function assertAdmin(event) {
   const jwtClaims = claims(event);
   const groups = claimGroups(jwtClaims);
+  const environment = process.env.ENVIRONMENT || 'dev';
   const allowed = (
-    process.env.ALLOWED_ADMIN_GROUPS || 'admin,collectool-admins'
+    process.env.ALLOWED_ADMIN_GROUPS ||
+    `collectool-${environment}-admin,collectool-${environment}-collectool-admins`
   )
     .split(',')
     .map((group) => group.trim())

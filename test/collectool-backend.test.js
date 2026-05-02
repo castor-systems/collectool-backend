@@ -92,7 +92,10 @@ test('CDK stack creates serverless AWS backend resources', () => {
   template.resourceCountIs('AWS::S3::Bucket', 1);
   template.resourceCountIs('AWS::CloudFront::Distribution', 1);
   template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
-    GroupName: 'admin',
+    GroupName: 'collectool-dev-admin',
+  });
+  template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
+    GroupName: 'collectool-dev-collectool-admins',
   });
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
     ExplicitAuthFlows: Match.arrayWith([
@@ -106,20 +109,57 @@ test('CDK stack creates serverless AWS backend resources', () => {
     Environment: {
       Variables: Match.objectLike({
         ENVIRONMENT: 'dev',
-        ALLOWED_ADMIN_GROUPS: 'admin,collectool-admins',
+        ALLOWED_ADMIN_GROUPS:
+          'collectool-dev-admin,collectool-dev-collectool-admins',
         SEED_INITIAL_DATA: 'false',
       }),
     },
   });
   template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', {
+    Name: 'collectool-dev-admin-jwt-authorizer',
     AuthorizerType: 'JWT',
     IdentitySource: ['$request.header.Authorization'],
   });
+  template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
+    StageName: 'dev',
+    AccessLogSettings: Match.objectLike({
+      DestinationArn: {
+        'Fn::GetAtt': [Match.stringLikeRegexp('HttpApiAccessLogGroup'), 'Arn'],
+      },
+    }),
+  });
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    BucketName: 'collectool-dev-admin-site-123456789012-us-east-1',
+    Tags: Match.arrayWith([{ Key: 'Project', Value: 'collectool' }]),
+  });
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    BucketName: 'collectool-dev-admin-site-123456789012-us-east-1',
+    Tags: Match.arrayWith([{ Key: 'Environment', Value: 'dev' }]),
+  });
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    BucketName: 'collectool-dev-admin-site-123456789012-us-east-1',
+    Tags: Match.arrayWith([
+      { Key: 'Name', Value: 'collectool-dev-admin-site' },
+    ]),
+  });
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    BucketName: 'collectool-dev-admin-site-123456789012-us-east-1',
+    Tags: Match.arrayWith([{ Key: 'Component', Value: 'admin-frontend' }]),
+  });
+  template.hasResourceProperties('AWS::CloudFront::OriginAccessControl', {
+    OriginAccessControlConfig: Match.objectLike({
+      Name: 'collectool-dev-admin-site-oac',
+    }),
+  });
   template.hasResourceProperties('AWS::CloudFront::Distribution', {
     DistributionConfig: Match.objectLike({
+      Comment: 'collectool-dev-admin-frontend',
       DefaultRootObject: 'index.html',
       PriceClass: 'PriceClass_100',
     }),
+  });
+  template.hasResourceProperties('AWS::IAM::Role', {
+    RoleName: 'collectool-dev-api-lambda-role',
   });
   template.hasResourceProperties('AWS::IAM::Role', {
     RoleName: 'collectool-dev-admin-github-actions',

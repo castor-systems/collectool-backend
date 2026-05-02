@@ -143,7 +143,9 @@ For any AWS resource, IAM, Cognito, API Gateway, Lambda, DynamoDB, logging, or a
 1. Keep the change in CDK under `lib/`.
 2. Prefer low-cost serverless defaults.
 3. Keep IAM scoped to the resources required by the backend.
-4. Run:
+4. Use representative physical names with `collectool-{environment}-...` wherever AWS supports explicit names.
+5. Ensure standard stack tags and per-resource `Name`/`Component` tags still apply to every taggable resource.
+6. Run:
 
 ```bash
 npm run check
@@ -227,7 +229,7 @@ npm run health -- <ApiUrl>
 
 ## First Admin User
 
-After a fresh stack deploy, create the first admin user manually and attach it to `collectool-admins` or `admin`. See `docs/DEPLOYMENT.md`.
+After a fresh stack deploy, create the first admin user manually and attach it to `collectool-{env}-collectool-admins` or `collectool-{env}-admin`. See `docs/DEPLOYMENT.md`.
 
 ## PR Checklist
 

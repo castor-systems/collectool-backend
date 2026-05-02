@@ -8,6 +8,7 @@ const {
   Stack,
   Tags,
 } = require('aws-cdk-lib');
+const apigateway = require('aws-cdk-lib/aws-apigateway');
 const apigatewayv2 = require('aws-cdk-lib/aws-apigatewayv2');
 const authorizers = require('aws-cdk-lib/aws-apigatewayv2-authorizers');
 const integrations = require('aws-cdk-lib/aws-apigatewayv2-integrations');
@@ -25,15 +26,19 @@ const { NagSuppressions } = require('cdk-nag');
 
 class CollectoolBackendStack extends Stack {
   constructor(scope, id, props = {}) {
-    super(scope, id, props);
+    super(scope, id, { ...props, analyticsReporting: false });
 
     const environment =
       this.node.tryGetContext('environment') || process.env.DEPLOY_ENV || 'dev';
     const isProd = environment === 'prod';
+    const projectName = 'collectool';
+    const resourcePrefix = `${projectName}-${environment}`;
+    const adminGroupName = `${resourcePrefix}-admin`;
+    const collectoolAdminsGroupName = `${resourcePrefix}-collectool-admins`;
     const allowedAdminGroups =
       this.node.tryGetContext('allowedAdminGroups') ||
       process.env.ALLOWED_ADMIN_GROUPS ||
-      'admin,collectool-admins';
+      `${adminGroupName},${collectoolAdminsGroupName}`;
     const seedInitialData = String(
       this.node.tryGetContext('seedInitialData') ||
         process.env.SEED_INITIAL_DATA ||
@@ -58,9 +63,20 @@ class CollectoolBackendStack extends Stack {
     const pointInTimeRecoverySpecification = {
       pointInTimeRecoveryEnabled: isProd,
     };
+    const applyResourceTags = (resource, name, component) => {
+      Tags.of(resource).add('Name', name);
+      Tags.of(resource).add('Component', component);
+    };
+
+    Tags.of(this).add('Project', projectName);
+    Tags.of(this).add('Application', projectName);
+    Tags.of(this).add('Environment', environment);
+    Tags.of(this).add('ManagedBy', 'aws-cdk');
+    Tags.of(this).add('Repository', 'collectool-backend');
+    Tags.of(this).add('CostProfile', 'serverless-on-demand');
 
     const adminUserPool = new cognito.UserPool(this, 'AdminUserPool', {
-      userPoolName: `collectool-${environment}-admin-users`,
+      userPoolName: `${resourcePrefix}-admin-users`,
       selfSignUpEnabled: false,
       signInAliases: {
         email: true,
@@ -89,9 +105,10 @@ class CollectoolBackendStack extends Stack {
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy,
     });
+    applyResourceTags(adminUserPool, `${resourcePrefix}-admin-users`, 'auth');
 
     const adminUserPoolClient = adminUserPool.addClient('AdminUserPoolClient', {
-      userPoolClientName: `collectool-${environment}-admin-web`,
+      userPoolClientName: `${resourcePrefix}-admin-web`,
       disableOAuth: true,
       generateSecret: false,
       authFlows: {
@@ -105,21 +122,21 @@ class CollectoolBackendStack extends Stack {
     });
 
     const adminGroup = adminUserPool.addGroup('AdminGroup', {
-      groupName: 'admin',
-      description: 'Collectool administrators',
+      groupName: adminGroupName,
+      description: `Collectool ${environment} administrators`,
       precedence: 1,
     });
     const collectoolAdminsGroup = adminUserPool.addGroup(
       'CollectoolAdminsGroup',
       {
-        groupName: 'collectool-admins',
-        description: 'Collectool admin backoffice users',
+        groupName: collectoolAdminsGroupName,
+        description: `Collectool ${environment} admin backoffice users`,
         precedence: 2,
       }
     );
 
     const appUserPool = new cognito.UserPool(this, 'AppUserPool', {
-      userPoolName: `collectool-${environment}-app-users`,
+      userPoolName: `${resourcePrefix}-app-users`,
       selfSignUpEnabled: true,
       signInAliases: {
         email: true,
@@ -148,9 +165,10 @@ class CollectoolBackendStack extends Stack {
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy,
     });
+    applyResourceTags(appUserPool, `${resourcePrefix}-app-users`, 'auth');
 
     const appUserPoolClient = appUserPool.addClient('AppUserPoolClient', {
-      userPoolClientName: `collectool-${environment}-app-web`,
+      userPoolClientName: `${resourcePrefix}-app-web`,
       disableOAuth: true,
       generateSecret: false,
       authFlows: {
@@ -164,23 +182,33 @@ class CollectoolBackendStack extends Stack {
     });
 
     const categoriesTable = new dynamodb.Table(this, 'CategoriesTable', {
-      tableName: `collectool-${environment}-collection-categories`,
+      tableName: `${resourcePrefix}-collection-categories`,
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification,
       removalPolicy,
     });
+    applyResourceTags(
+      categoriesTable,
+      `${resourcePrefix}-collection-categories`,
+      'data'
+    );
 
     const entitiesTable = new dynamodb.Table(this, 'EntitiesTable', {
-      tableName: `collectool-${environment}-collection-entities`,
+      tableName: `${resourcePrefix}-collection-entities`,
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification,
       removalPolicy,
     });
+    applyResourceTags(
+      entitiesTable,
+      `${resourcePrefix}-collection-entities`,
+      'data'
+    );
 
     const flowsTable = new dynamodb.Table(this, 'FlowsTable', {
-      tableName: `collectool-${environment}-collection-flows`,
+      tableName: `${resourcePrefix}-collection-flows`,
       partitionKey: {
         name: 'category_id',
         type: dynamodb.AttributeType.STRING,
@@ -190,37 +218,66 @@ class CollectoolBackendStack extends Stack {
       pointInTimeRecoverySpecification,
       removalPolicy,
     });
+    applyResourceTags(flowsTable, `${resourcePrefix}-collection-flows`, 'data');
 
     const apiLogGroup = new logs.LogGroup(this, 'ApiHandlerLogGroup', {
-      logGroupName: `/aws/lambda/collectool-${environment}-api`,
+      logGroupName: `/aws/lambda/${resourcePrefix}-api`,
       retention: isProd
         ? logs.RetentionDays.ONE_MONTH
         : logs.RetentionDays.ONE_WEEK,
       removalPolicy,
     });
+    applyResourceTags(
+      apiLogGroup,
+      `${resourcePrefix}-api-logs`,
+      'observability'
+    );
     const apiAccessLogGroup = new logs.LogGroup(this, 'HttpApiAccessLogGroup', {
-      logGroupName: `/aws/apigateway/collectool-${environment}-backend`,
+      logGroupName: `/aws/apigateway/${resourcePrefix}-backend`,
       retention: isProd
         ? logs.RetentionDays.ONE_MONTH
         : logs.RetentionDays.ONE_WEEK,
       removalPolicy,
     });
+    applyResourceTags(
+      apiAccessLogGroup,
+      `${resourcePrefix}-backend-access-logs`,
+      'observability'
+    );
     const adminSiteBucket = new s3.Bucket(this, 'AdminSiteBucket', {
+      bucketName: `${resourcePrefix}-admin-site-${Stack.of(this).account}-${Stack.of(this).region}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       versioned: isProd,
       removalPolicy,
     });
+    applyResourceTags(
+      adminSiteBucket,
+      `${resourcePrefix}-admin-site`,
+      'admin-frontend'
+    );
+    const adminSiteOriginAccessControl = new cloudfront.S3OriginAccessControl(
+      this,
+      'AdminSiteOriginAccessControl',
+      {
+        originAccessControlName: `${resourcePrefix}-admin-site-oac`,
+        description: `CloudFront OAC for ${resourcePrefix} admin site bucket.`,
+      }
+    );
     const adminSiteDistribution = new cloudfront.Distribution(
       this,
       'AdminSiteDistribution',
       {
-        comment: `collectool ${environment} admin frontend`,
+        comment: `${resourcePrefix}-admin-frontend`,
         defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin:
-            origins.S3BucketOrigin.withOriginAccessControl(adminSiteBucket),
+          origin: origins.S3BucketOrigin.withOriginAccessControl(
+            adminSiteBucket,
+            {
+              originAccessControl: adminSiteOriginAccessControl,
+            }
+          ),
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
           compress: true,
@@ -248,13 +305,18 @@ class CollectoolBackendStack extends Stack {
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
       }
     );
+    applyResourceTags(
+      adminSiteDistribution,
+      `${resourcePrefix}-admin-frontend`,
+      'admin-frontend'
+    );
     const adminSiteUrl = `https://${adminSiteDistribution.distributionDomainName}`;
     const effectiveCorsAllowedOrigins = Array.from(
       new Set([...corsAllowedOrigins, adminSiteUrl])
     );
     const githubOidcProviderArn = `arn:${Stack.of(this).partition}:iam::${Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`;
     const adminDeployRole = new iam.Role(this, 'AdminDeployRole', {
-      roleName: `collectool-${environment}-admin-github-actions`,
+      roleName: `${resourcePrefix}-admin-github-actions`,
       description: `Deploy collectool-admin static assets for ${environment}.`,
       assumedBy: new iam.WebIdentityPrincipal(githubOidcProviderArn, {
         StringEquals: {
@@ -263,6 +325,11 @@ class CollectoolBackendStack extends Stack {
         },
       }),
     });
+    applyResourceTags(
+      adminDeployRole,
+      `${resourcePrefix}-admin-github-actions`,
+      'admin-frontend'
+    );
     adminDeployRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['s3:GetBucketLocation', 's3:ListBucket'],
@@ -301,10 +368,27 @@ class CollectoolBackendStack extends Stack {
       })
     );
 
+    const apiHandlerRole = new iam.Role(this, 'ApiHandlerRole', {
+      roleName: `${resourcePrefix}-api-lambda-role`,
+      description: `Execution role for the ${resourcePrefix} API Lambda.`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaBasicExecutionRole'
+        ),
+      ],
+    });
+    applyResourceTags(
+      apiHandlerRole,
+      `${resourcePrefix}-api-lambda-role`,
+      'api'
+    );
+
     const apiHandler = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
-      functionName: `collectool-${environment}-api`,
+      functionName: `${resourcePrefix}-api`,
       runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
+      role: apiHandlerRole,
       entry: path.join(process.cwd(), 'src', 'handler.ts'),
       handler: 'handler',
       memorySize: 256,
@@ -329,39 +413,65 @@ class CollectoolBackendStack extends Stack {
         SEED_INITIAL_DATA: seedInitialData,
       },
     });
+    applyResourceTags(apiHandler, `${resourcePrefix}-api`, 'api');
 
-    new cloudwatch.Alarm(this, 'ApiHandlerErrorsAlarm', {
-      alarmName: `collectool-${environment}-api-errors`,
-      metric: apiHandler.metricErrors({
-        period: Duration.minutes(5),
-        statistic: 'sum',
-      }),
-      threshold: 1,
-      evaluationPeriods: isProd ? 1 : 3,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
-
-    new cloudwatch.Alarm(this, 'ApiHandlerThrottlesAlarm', {
-      alarmName: `collectool-${environment}-api-throttles`,
-      metric: apiHandler.metricThrottles({
-        period: Duration.minutes(5),
-        statistic: 'sum',
-      }),
-      threshold: 1,
-      evaluationPeriods: isProd ? 1 : 3,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
-
-    new cloudwatch.Alarm(this, 'ApiHandlerDurationAlarm', {
-      alarmName: `collectool-${environment}-api-duration`,
-      metric: apiHandler.metricDuration({
-        period: Duration.minutes(5),
-        statistic: 'p95',
-      }),
-      threshold: 10000,
-      evaluationPeriods: isProd ? 3 : 6,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
+    const apiHandlerErrorsAlarm = new cloudwatch.Alarm(
+      this,
+      'ApiHandlerErrorsAlarm',
+      {
+        alarmName: `${resourcePrefix}-api-errors`,
+        metric: apiHandler.metricErrors({
+          period: Duration.minutes(5),
+          statistic: 'sum',
+        }),
+        threshold: 1,
+        evaluationPeriods: isProd ? 1 : 3,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    applyResourceTags(
+      apiHandlerErrorsAlarm,
+      `${resourcePrefix}-api-errors`,
+      'api'
+    );
+    const apiHandlerThrottlesAlarm = new cloudwatch.Alarm(
+      this,
+      'ApiHandlerThrottlesAlarm',
+      {
+        alarmName: `${resourcePrefix}-api-throttles`,
+        metric: apiHandler.metricThrottles({
+          period: Duration.minutes(5),
+          statistic: 'sum',
+        }),
+        threshold: 1,
+        evaluationPeriods: isProd ? 1 : 3,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    applyResourceTags(
+      apiHandlerThrottlesAlarm,
+      `${resourcePrefix}-api-throttles`,
+      'api'
+    );
+    const apiHandlerDurationAlarm = new cloudwatch.Alarm(
+      this,
+      'ApiHandlerDurationAlarm',
+      {
+        alarmName: `${resourcePrefix}-api-duration`,
+        metric: apiHandler.metricDuration({
+          period: Duration.minutes(5),
+          statistic: 'p95',
+        }),
+        threshold: 10000,
+        evaluationPeriods: isProd ? 3 : 6,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    applyResourceTags(
+      apiHandlerDurationAlarm,
+      `${resourcePrefix}-api-duration`,
+      'api'
+    );
 
     categoriesTable.grantReadWriteData(apiHandler);
     entitiesTable.grantReadWriteData(apiHandler);
@@ -391,7 +501,8 @@ class CollectoolBackendStack extends Stack {
     );
 
     const httpApi = new apigatewayv2.HttpApi(this, 'HttpApi', {
-      apiName: `collectool-${environment}-backend`,
+      apiName: `${resourcePrefix}-backend`,
+      createDefaultStage: false,
       corsPreflight: {
         allowCredentials: true,
         allowHeaders: ['authorization', 'content-type'],
@@ -405,30 +516,40 @@ class CollectoolBackendStack extends Stack {
         maxAge: Duration.days(1),
       },
     });
-    const defaultStage = httpApi.defaultStage?.node.defaultChild;
-    if (defaultStage instanceof apigatewayv2.CfnStage) {
-      defaultStage.accessLogSettings = {
-        destinationArn: apiAccessLogGroup.logGroupArn,
-        format: JSON.stringify({
-          requestId: '$context.requestId',
-          ip: '$context.identity.sourceIp',
-          requestTime: '$context.requestTime',
-          httpMethod: '$context.httpMethod',
-          routeKey: '$context.routeKey',
-          status: '$context.status',
-          protocol: '$context.protocol',
-          responseLength: '$context.responseLength',
-          integrationErrorMessage: '$context.integrationErrorMessage',
-        }),
-      };
-    }
+    applyResourceTags(httpApi, `${resourcePrefix}-backend`, 'api');
+    const httpStage = new apigatewayv2.HttpStage(this, 'HttpStage', {
+      httpApi,
+      stageName: environment,
+      autoDeploy: true,
+      accessLogSettings: {
+        destination: new apigatewayv2.LogGroupLogDestination(apiAccessLogGroup),
+        format: apigateway.AccessLogFormat.custom(
+          JSON.stringify({
+            requestId: '$context.requestId',
+            ip: '$context.identity.sourceIp',
+            requestTime: '$context.requestTime',
+            httpMethod: '$context.httpMethod',
+            routeKey: '$context.routeKey',
+            status: '$context.status',
+            protocol: '$context.protocol',
+            responseLength: '$context.responseLength',
+            integrationErrorMessage: '$context.integrationErrorMessage',
+          })
+        ),
+      },
+    });
+    applyResourceTags(
+      httpStage,
+      `${resourcePrefix}-backend-${environment}`,
+      'api'
+    );
 
     const integration = new integrations.HttpLambdaIntegration(
       'ApiIntegration',
       apiHandler
     );
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer(
-      'AdminJwtAuthorizer',
+      `${resourcePrefix}-admin-jwt-authorizer`,
       `https://cognito-idp.${Stack.of(this).region}.amazonaws.com/${adminUserPool.userPoolId}`,
       {
         jwtAudience: [adminUserPoolClient.userPoolClientId],
@@ -451,10 +572,6 @@ class CollectoolBackendStack extends Stack {
       methods: [apigatewayv2.HttpMethod.ANY],
       integration,
     });
-
-    Tags.of(this).add('Application', 'collectool');
-    Tags.of(this).add('Environment', environment);
-    Tags.of(this).add('CostProfile', 'serverless-on-demand');
 
     NagSuppressions.addResourceSuppressions(
       [adminUserPool, appUserPool],
@@ -484,12 +601,12 @@ class CollectoolBackendStack extends Stack {
       true
     );
     NagSuppressions.addResourceSuppressions(
-      apiHandler,
+      [apiHandlerRole, apiHandler],
       [
         {
           id: 'AwsSolutions-IAM4',
           reason:
-            'The Lambda construct attaches AWSLambdaBasicExecutionRole for CloudWatch Logs; business permissions remain scoped explicitly below.',
+            'The explicit Lambda execution role uses AWSLambdaBasicExecutionRole for CloudWatch Logs; business permissions remain scoped explicitly below.',
         },
         {
           id: 'AwsSolutions-IAM5',
@@ -561,7 +678,7 @@ class CollectoolBackendStack extends Stack {
     ]);
 
     new CfnOutput(this, 'ApiUrl', {
-      value: httpApi.apiEndpoint,
+      value: httpStage.url,
       description:
         'Use this value as NEXT_PUBLIC_COLLECTOOL_API_URL in collectool-admin.',
     });

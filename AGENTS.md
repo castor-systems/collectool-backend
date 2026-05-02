@@ -47,6 +47,10 @@ Do not deploy or mutate AWS resources unless the user explicitly asks for it.
 - `npm run deploy:prod` requires an explicit production deploy request.
 - Prefer `npm run diff:dev` / `npm run diff:prod` before any deploy.
 - Never commit credentials, local AWS profiles, `cdk.out`, or generated asset bundles.
+- Every AWS resource must keep a representative `collectool-{environment}-...`
+  name where the service supports physical names, and every taggable resource
+  must keep the standard project/environment tags plus resource-level
+  `Name`/`Component` tags.
 
 ## Environment Variables
 

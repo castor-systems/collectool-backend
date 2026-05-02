@@ -23,7 +23,8 @@ function configureEnvironment() {
   process.env.ENTITIES_TABLE = 'collectool-test-entities';
   process.env.FLOWS_TABLE = 'collectool-test-flows';
   process.env.APP_USER_POOL_ID = 'app-user-pool';
-  process.env.ALLOWED_ADMIN_GROUPS = 'admin,collectool-admins';
+  process.env.ALLOWED_ADMIN_GROUPS =
+    'collectool-test-admin,collectool-test-collectool-admins';
   process.env.SEED_INITIAL_DATA = 'false';
 }
 
@@ -63,7 +64,7 @@ function makeEvent(options = {}) {
   };
 }
 
-function adminClaims(groups = ['collectool-admins']) {
+function adminClaims(groups = ['collectool-test-collectool-admins']) {
   return {
     sub: 'admin-sub',
     email: 'admin@collectool.local',
@@ -110,7 +111,7 @@ test('admin session merges JWT groups with Cognito attributes', async () => {
     user: {
       email: 'admin@collectool.local',
       name: 'Collectool Admin',
-      groups: ['collectool-admins'],
+      groups: ['collectool-test-collectool-admins'],
     },
   });
 });

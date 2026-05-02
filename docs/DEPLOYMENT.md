@@ -16,13 +16,15 @@ Recommended branch mapping:
 - `main`: `prod`
 
 Resource names include the environment, for example `collectool-dev-api` and `collectool-prod-api`.
+The stack also applies standard tags for project, environment, cost profile,
+repository, and per-resource `Name`/`Component` where AWS supports tags.
 
 ## Required Inputs
 
 Provide these as CDK context or environment variables:
 
 ```bash
-ALLOWED_ADMIN_GROUPS=admin,collectool-admins
+ALLOWED_ADMIN_GROUPS=collectool-{env}-admin,collectool-{env}-collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.example.com
 ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
@@ -34,7 +36,7 @@ Context has priority over environment variables:
 
 ```bash
 npm run deploy:dev -- \
-  -c allowedAdminGroups=admin,collectool-admins \
+  -c allowedAdminGroups=collectool-dev-admin,collectool-dev-collectool-admins \
   -c corsAllowedOrigins=http://localhost:3000 \
   -c seedInitialData=false
 ```
@@ -118,7 +120,7 @@ Use OIDC-based AWS credentials in CI instead of long-lived AWS keys.
 For local development, copy the CloudFormation outputs into the admin app environment:
 
 ```bash
-NEXT_PUBLIC_COLLECTOOL_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com
+NEXT_PUBLIC_COLLECTOOL_API_URL=https://xxxx.execute-api.us-east-1.amazonaws.com/dev
 NEXT_PUBLIC_ADMIN_COGNITO_REGION=us-east-1
 NEXT_PUBLIC_ADMIN_COGNITO_CLIENT_ID=<AdminUserPoolClientId>
 NEXT_PUBLIC_ADMIN_AUTH_MODE=real
@@ -172,7 +174,7 @@ Add that user to an admin group:
 aws cognito-idp admin-add-user-to-group \
   --user-pool-id <AdminUserPoolId> \
   --username admin@example.com \
-  --group-name collectool-admins
+  --group-name collectool-{env}-collectool-admins
 ```
 
 Set a permanent password for local/dev testing if you do not want the temporary-password flow:
@@ -199,5 +201,5 @@ Useful diagnostics:
 
 ```bash
 AWS_PROFILE=castor npm run outputs:dev
-npm run health -- https://xxxx.execute-api.us-east-1.amazonaws.com
+npm run health -- https://xxxx.execute-api.us-east-1.amazonaws.com/dev
 ```

@@ -21,7 +21,7 @@ More detail: `docs/ARCHITECTURE.md`.
 Pass these values with CDK context or environment variables:
 
 ```bash
-ALLOWED_ADMIN_GROUPS=admin,collectool-admins
+ALLOWED_ADMIN_GROUPS=collectool-{env}-admin,collectool-{env}-collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.collectool.example
 ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
@@ -33,6 +33,12 @@ The stack creates both Cognito pools:
 
 - `collectool-{env}-admin-users`
 - `collectool-{env}-app-users`
+
+All AWS resources created by this stack must keep representative
+`collectool-{env}-...` names when AWS supports physical names. The stack also
+applies standard tags for cost and operations: `Project`, `Application`,
+`Environment`, `ManagedBy`, `Repository`, `CostProfile`, plus per-resource
+`Name` and `Component` tags where the AWS resource supports tags.
 
 ## Deploy
 
@@ -62,7 +68,9 @@ Use the stack outputs to configure `collectool-admin`:
 - `AdminSiteUrl` -> deployed admin URL
 - `AdminDeployRoleArn` -> `AWS_DEPLOY_ROLE_ARN` secret in the matching `collectool-admin` GitHub Environment
 
-Create the first admin user after deploy and add it to `collectool-admins` or `admin`. See `docs/DEPLOYMENT.md`.
+Create the first admin user after deploy and add it to
+`collectool-{env}-collectool-admins` or `collectool-{env}-admin`. See
+`docs/DEPLOYMENT.md`.
 
 ## Branch/Environment Model
 

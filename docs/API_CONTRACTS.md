@@ -41,7 +41,7 @@ Returns:
   "user": {
     "email": "admin@example.com",
     "name": "Admin User",
-    "groups": ["collectool-admins"]
+    "groups": ["collectool-dev-collectool-admins"]
   }
 }
 ```

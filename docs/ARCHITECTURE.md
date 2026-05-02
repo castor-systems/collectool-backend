@@ -10,7 +10,7 @@ The backend is designed for AWS-first operation, low idle cost, and compatibilit
 - `AWS::ApiGatewayV2::Authorizer`: JWT authorizer backed by the admin Cognito user pool.
 - `AWS::Cognito::UserPool`: admin user pool for backoffice users.
 - `AWS::Cognito::UserPoolClient`: admin SPA/API auth client with `USER_PASSWORD_AUTH` and SRP enabled.
-- `AWS::Cognito::UserPoolGroup`: `admin` and `collectool-admins` groups.
+- `AWS::Cognito::UserPoolGroup`: environment-named admin groups.
 - `AWS::Cognito::UserPool`: app user pool for main Collectool users.
 - `AWS::Cognito::UserPoolClient`: app SPA/API auth client.
 - `AWS::Lambda::Function`: single Node.js 24 ARM64 handler for admin and public runtime routes.
@@ -58,7 +58,7 @@ All `/admin/*` routes use API Gateway JWT validation against the Cognito resourc
 The Lambda then checks Cognito groups from `cognito:groups`. Default accepted groups:
 
 ```text
-admin,collectool-admins
+collectool-{env}-admin,collectool-{env}-collectool-admins
 ```
 
 Public runtime routes under `/collection-builder/*` do not require admin auth and only expose active categories with published flows.
@@ -89,7 +89,49 @@ Relevant outputs:
 - `AdminSiteUrl`
 - `AdminDeployRoleArn`
 
-The stack does not create a permanent admin password. Create the first admin user after deployment and attach it to `collectool-admins` or `admin`.
+## Naming And Tags
+
+`collectool-backend` is the source of truth for backend and admin-hosting AWS
+infrastructure. Every resource created here must be identifiable by project and
+environment.
+
+Physical names use this pattern wherever AWS supports explicit names:
+
+```text
+collectool-{env}-{purpose}
+```
+
+Examples:
+
+- `collectool-dev-api`
+- `collectool-prod-backend`
+- `collectool-dev-admin-site-123456789012-us-east-1`
+- `collectool-prod-collectool-admins`
+
+The stack applies these standard tags at stack level:
+
+- `Project=collectool`
+- `Application=collectool`
+- `Environment={env}`
+- `ManagedBy=aws-cdk`
+- `Repository=collectool-backend`
+- `CostProfile=serverless-on-demand`
+
+Important taggable resources also receive:
+
+- `Name=collectool-{env}-{purpose}`
+- `Component=api|auth|data|observability|admin-frontend`
+
+Some AWS resource types do not support tags. Those must still receive explicit
+representative names, comments, descriptions, or outputs when the service
+supports them.
+
+CDK analytics metadata is disabled for this stack so deployments do not create
+an extra untaggable `AWS::CDK::Metadata` resource.
+
+The stack does not create a permanent admin password. Create the first admin
+user after deployment and attach it to `collectool-{env}-collectool-admins` or
+`collectool-{env}-admin`.
 
 ## Cost Controls
 
