@@ -1,17 +1,135 @@
-// const cdk = require('aws-cdk-lib/core');
-// const { Template } = require('aws-cdk-lib/assertions');
-// const CollectoolBackend = require('../lib/collectool-backend-stack');
+'use strict';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/collectool-backend-stack.js
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//   // WHEN
-//   const stack = new CollectoolBackend.CollectoolBackendStack(app, 'MyTestStack');
-//   // THEN
-//   const template = Template.fromStack(stack);
+const cdk = require('aws-cdk-lib');
+const { Template, Match } = require('aws-cdk-lib/assertions');
+const { CollectoolBackendStack } = require('../lib/collectool-backend-stack');
+const { buildRuntimeResponse, validateFlow } = require('../src/runtime');
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+function makeStack() {
+  const app = new cdk.App({
+    context: {
+      environment: 'dev',
+      corsAllowedOrigins: 'http://localhost:3000',
+      seedInitialData: 'false',
+    },
+  });
+
+  return new CollectoolBackendStack(app, 'TestStack', {
+    env: { account: '123456789012', region: 'us-east-1' },
+  });
+}
+
+function sampleFlow() {
+  return {
+    id: 'flow-kpop-draft',
+    category_id: 'kpop',
+    version: 1,
+    status: 'DRAFT',
+    root_question_ids: ['artist'],
+    question_groups: {
+      bts_group: {
+        id: 'bts_group',
+        label: 'BTS details',
+        questions: ['member'],
+      },
+    },
+    conditions: [
+      {
+        id: 'show_bts',
+        condition: {
+          question_id: 'artist',
+          operator: 'EQUALS',
+          value: ['bts'],
+        },
+        actions: [{ type: 'SHOW_QUESTION_GROUP', target: 'bts_group' }],
+      },
+    ],
+    questions: [
+      {
+        id: 'artist',
+        type: 'SINGLE_SELECT',
+        label: 'Artist',
+        helper_text: '',
+        required: true,
+        allow_all: false,
+        options: [
+          { id: 'bts', label: 'BTS', value: 'bts', entity_id: 'group-bts', tags: ['group:bts'] },
+          { id: 'txt', label: 'TXT', value: 'txt', tags: ['group:txt'] },
+        ],
+      },
+      {
+        id: 'member',
+        type: 'MULTI_SELECT',
+        label: 'Member',
+        helper_text: '',
+        required: true,
+        allow_all: false,
+        options: [
+          { id: 'rm', label: 'RM', value: 'rm', tags: ['member:rm'] },
+          { id: 'jin', label: 'Jin', value: 'jin', tags: ['member:jin'] },
+        ],
+      },
+    ],
+    notes: '',
+  };
+}
+
+test('CDK stack creates serverless AWS backend resources', () => {
+  const template = Template.fromStack(makeStack());
+
+  template.resourceCountIs('AWS::Cognito::UserPool', 2);
+  template.resourceCountIs('AWS::Cognito::UserPoolClient', 2);
+  template.resourceCountIs('AWS::Cognito::UserPoolGroup', 2);
+  template.resourceCountIs('AWS::DynamoDB::Table', 3);
+  template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
+    GroupName: 'admin',
+  });
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+    ExplicitAuthFlows: Match.arrayWith(['ALLOW_USER_PASSWORD_AUTH', 'ALLOW_USER_SRP_AUTH']),
+  });
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    Runtime: 'nodejs20.x',
+    Architectures: ['arm64'],
+    Environment: {
+      Variables: Match.objectLike({
+        ENVIRONMENT: 'dev',
+        ALLOWED_ADMIN_GROUPS: 'admin,collectool-admins',
+        SEED_INITIAL_DATA: 'false',
+      }),
+    },
+  });
+  template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', {
+    AuthorizerType: 'JWT',
+    IdentitySource: ['$request.header.Authorization'],
+  });
+});
+
+test('runtime computes conditional questions, tags, and completion', () => {
+  const response = buildRuntimeResponse(sampleFlow(), {
+    artist: 'bts',
+    member: ['rm'],
+  });
+
+  expect(response.visible_questions.map((question) => question.id)).toEqual(['artist', 'member']);
+  expect(response.tags).toEqual(['group:bts', 'member:rm']);
+  expect(response.next_question).toBeNull();
+  expect(response.is_complete).toBe(true);
+});
+
+test('runtime removes answers for invisible questions', () => {
+  const response = buildRuntimeResponse(sampleFlow(), {
+    artist: 'txt',
+    member: ['rm'],
+  });
+
+  expect(response.visible_questions.map((question) => question.id)).toEqual(['artist']);
+  expect(response.answers).toEqual({ artist: 'txt' });
+  expect(response.tags).toEqual(['group:txt']);
+});
+
+test('flow validation catches missing references', () => {
+  const flow = sampleFlow();
+  flow.root_question_ids = ['missing'];
+
+  expect(validateFlow(flow, [{ id: 'group-bts' }])).toContain('Root question references missing question missing');
 });

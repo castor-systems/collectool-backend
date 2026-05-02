@@ -1,0 +1,86 @@
+# API Contracts
+
+All admin errors return:
+
+```json
+{ "message": "Error details" }
+```
+
+All `/admin/*` endpoints require:
+
+```text
+Authorization: Bearer <cognito_access_token>
+```
+
+The token must come from the admin Cognito user pool created by the backend stack and must belong to one of the configured admin groups.
+
+## Admin Session
+
+```http
+GET /admin/session
+```
+
+Returns:
+
+```json
+{
+  "user": {
+    "email": "admin@example.com",
+    "name": "Admin User",
+    "groups": ["collectool-admins"]
+  }
+}
+```
+
+## Users
+
+```http
+GET /admin/users?limit=25&paginationToken=...&search=...&status=active&verified=true
+GET /admin/metrics/users
+POST /admin/users/:username/enable
+POST /admin/users/:username/disable
+POST /admin/users/:username/unlock
+POST /admin/users/:username/ban
+POST /admin/users/:username/unban
+```
+
+User list and metrics are sourced from `APP_USER_POOL_ID`.
+
+## Collection Builder Admin
+
+```http
+GET /admin/collection-builder/bootstrap
+GET /admin/collection-builder/categories
+POST /admin/collection-builder/categories
+PUT /admin/collection-builder/categories/:id
+POST /admin/collection-builder/categories/:id/archive
+GET /admin/collection-builder/entities?type=GROUP
+POST /admin/collection-builder/entities
+PUT /admin/collection-builder/entities/:id
+GET /admin/collection-builder/categories/:categoryId/flow
+PUT /admin/collection-builder/categories/:categoryId/flow
+POST /admin/collection-builder/categories/:categoryId/preview
+POST /admin/collection-builder/categories/:categoryId/publish
+```
+
+Collection Builder timestamps use Unix seconds for `created_at`, `updated_at`, and `published_at`.
+
+## Public Runtime
+
+These endpoints expose published data only:
+
+```http
+GET /collection-builder/categories
+GET /collection-builder/categories/:categoryId/flow
+POST /collection-builder/categories/:categoryId/runtime
+```
+
+Only categories with `status: "ACTIVE"` and a published flow are visible through public runtime endpoints.
+
+## Contract Notes
+
+- Category status: `ACTIVE`, `DRAFT`, `COMING_SOON`, `ARCHIVED`.
+- Flow status: `DRAFT`, `PUBLISHED`, `ARCHIVED`.
+- Entity status is stored as sent by admin, with standard values `ACTIVE`, `DRAFT`, `ARCHIVED`.
+- The publish endpoint keeps the draft and creates immutable published versions as `FLOW#PUBLISHED#v{version}`.
+- The runtime treats `"All/Todos"` as a future product decision; no special sentinel is generated automatically yet.
