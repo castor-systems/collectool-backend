@@ -25,6 +25,8 @@ npm test
 npm run synth:dev -- -c corsAllowedOrigins=http://localhost:3000 -c seedInitialData=false
 ```
 
+The full final workflow for humans and agents is documented in `docs/DEVELOPMENT_WORKFLOW.md`.
+
 ## Package Manager And Runtime
 
 Use npm only.
@@ -85,6 +87,7 @@ Update docs in the same change when behavior changes:
 - HTTP route changes: `docs/openapi.yaml`.
 - Infra/deploy changes: `docs/ARCHITECTURE.md` and `docs/DEPLOYMENT.md`.
 - Tooling/workflow changes: `docs/AGENT_DEVELOPMENT_TOOLING.md` and this file.
+- Final development workflow changes: `docs/DEVELOPMENT_WORKFLOW.md`.
 
 ## Adding A Feature
 

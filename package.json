@@ -18,6 +18,7 @@
     "diff:prod": "cdk diff -c environment=prod",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "github:configure-envs": "scripts/configure-github-environments.sh",
     "lint": "eslint .",
     "openapi:bundle": "redocly bundle docs/openapi.yaml --output /tmp/collectool-openapi.yaml",
     "openapi:lint": "redocly lint docs/openapi.yaml",

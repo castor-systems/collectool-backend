@@ -9,7 +9,7 @@ Este documento cubre solo el backend. El repositorio inspeccionado es un proyect
 Estado observado:
 
 - Stack: AWS CDK v2 con JavaScript CommonJS.
-- Runtime: Lambda Node.js 24 ARM64.
+- Runtime: Lambda Node.js 20 ARM64.
 - Infra: API Gateway HTTP API, Cognito user pools/clients/groups, DynamoDB on-demand, CloudWatch Logs.
 - API: handler Lambda propio en `src/handler.js`, routing manual por path/method.
 - Lógica de negocio separada parcialmente en `src/runtime.js` y seed en `src/seed.js`.
@@ -36,18 +36,20 @@ Verificacion ejecutada:
 
 ## Implementacion Aplicada
 
-Luego de las decisiones humanas, se implemento el primer lote de tooling y workflow backend:
+Luego de las decisiones humanas, se implemento el lote de tooling y workflow backend:
 
 - `npm run check`, typecheck `checkJs`, ESLint, Prettier y estandarizacion npm/Node 24.
 - CI, deploy dev/prod con OIDC, commitlint, changelog, Dependabot, CodeQL, audit y `cdk-nag`.
-- `AGENTS.md`, `.env.example`, PR template y documentacion de branch protection.
+- `AGENTS.md`, `.env.example`, PR template, documentacion de branch protection y guia final `docs/DEVELOPMENT_WORKFLOW.md`.
 - Fixtures JSON, JSON Schema y tests de contrato alineados con `collectool-admin`.
 - OpenAPI 3.1 en `docs/openapi.yaml`, validado con Redocly CLI e incluido en `npm run check`.
 - Handler integration tests con `aws-sdk-client-mock`.
-- Reemplazo de marshalling DynamoDB manual por `DynamoDBDocumentClient`.
+- Reemplazo de marshaling DynamoDB manual por `DynamoDBDocumentClient`.
 - Observabilidad base: logs estructurados, access logs HTTP API y alarmas CloudWatch para Lambda errors, throttles y duration.
+- Seed policy final: `SEED_INITIAL_DATA=false` para shared dev/prod; `true` solo para local/manual sandbox.
+- Script reproducible `npm run github:configure-envs` para crear/actualizar GitHub Environments, secrets y variables.
 
-Quedan como trabajo incremental posterior la division profunda de `src/handler.js` en router/services/repositories y la eventual decision humana sobre MFA/Cognito Plus/PITR en dev. No se elimino el repo anidado `collectool-backend/collectool-backend` porque el documento pide confirmacion humana antes de borrar artefactos locales.
+Quedan como trabajo incremental posterior la division profunda de `src/handler.js` en router/services/repositories y la eventual decision humana sobre MFA/Cognito Plus/PITR en dev.
 
 ## Recomendaciones
 
@@ -198,7 +200,7 @@ Implementar
 
 **Que es:** Definir npm y version de Node como contrato de desarrollo.
 
-**Estado actual en el proyecto:** Hay `package-lock.json`, pero no hay `.nvmrc`, `engines` ni AGENTS que prohíba lockfiles alternativos. CDK Lambda estaba en Node.js 20 y el entorno local no estaba fijado.
+**Estado actual en el proyecto:** Hay `package-lock.json`, pero no hay `.nvmrc`, `engines` ni AGENTS que prohíba lockfiles alternativos. CDK Lambda usa Node.js 20, mientras el entorno local no esta fijado.
 
 **Como se implementaria:**
 
@@ -213,7 +215,7 @@ Implementar
 
 **Prioridad sugerida:** Alta
 
-**Decision recomendada:** Usar Node 24 si CDK/AWS Lambda lo soportan.
+**Decision recomendada:** Usar Node 20 para alinear con Lambda.
 
 **Criterios de aceptacion:**
 
@@ -378,7 +380,7 @@ Implementar, revisar el contrato con el admin que es una de las dos aplicaciones
 
 - Crear `.github/workflows/ci.yml`:
   - checkout
-  - setup-node con Node 24
+  - setup-node con Node 20
   - `npm ci`
   - `npm run check`
 - Si este repo vive como repo separado, workflow en su raiz.
@@ -862,7 +864,7 @@ Implementar.
 
 ### DESICION HUMANA
 
-Implementar.
+Implementar y configurar
 
 ### 25. Scripts de Diagnostico
 
@@ -893,6 +895,10 @@ Implementar.
 
 - `npm run diff:dev` y `npm run diff:prod` existen.
 - Docs explican precondiciones de AWS CLI.
+
+### DESICION HUMANA
+
+Implementar.
 
 ### 26. Convenciones para Agregar Features
 
@@ -925,6 +931,10 @@ Implementar.
 
 - Guia existe.
 - Nuevo endpoint de ejemplo sigue la guia.
+
+### DESICION HUMANA
+
+Implementar.
 
 ### 27. Limpieza de Artefactos y Nested Repo
 
@@ -972,7 +982,7 @@ Implementar.
 
 ### Top 5 prioridades recomendadas
 
-1. Agregar `AGENTS.md`, `.nvmrc`, `.env.example` y regla npm/Node 24.
+1. Agregar `AGENTS.md`, `.nvmrc`, `.env.example` y regla npm/Node 20.
 2. Agregar Prettier + ESLint + `npm run check`.
 3. Agregar CI de PR con `npm ci`, lint, format, tests y synth.
 4. Separar `handler.js` en router/services/repositories y agregar handler integration tests con AWS SDK mockeado.
@@ -993,3 +1003,19 @@ Implementar.
 - Definir si CI/CD vive dentro de este repo backend separado o en un repositorio padre/monorepo.
 - Definir nivel requerido de IaC security (`cdk-nag` obligatorio o informativo).
 - Definir donde viviran los contratos compartidos backend/frontend: backend como fuente, paquete compartido o schemas copiados con version.
+
+## DESICION HUMANA
+
+Con respecto a estos ultimos puntos "Decisiones humanas antes de implementar" te respondo con la siguiente lista (cada una corresponde a una respuesta a cada punto en orden):
+
+- Habria que migrar a typescript. Como recien esta escrito el proyecto, podriamos migrarlo y hacerlo andar
+
+- Es basura y ya la elimine, no deberia existir
+
+- El CI/CD vivira dentro del proyecto
+
+- cdk-nag OBLIGATORIO
+
+- Si solo tuviesen que vivir en un solo lado deberian vivir entonces en le backend, en ese caso, solo para esto, tambien modificar collectool-admin.
+
+TODO el flujo final de desarrollo despues de todas estas implementaciones, asi como las herramientas instaladas y todo, tiene que quedar documentado para que tanto humanos como agentes puedan utilizarlo. Dividi la documentacion como se te sea mas sencillo.

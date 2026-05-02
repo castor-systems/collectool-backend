@@ -83,3 +83,5 @@ See `docs/DEPLOYMENT.md` for CI examples.
 Workflow and repository protection details live in `docs/BRANCH_PROTECTION.md`.
 
 The HTTP API contract lives in `docs/openapi.yaml`. Update it together with `docs/API_CONTRACTS.md`, `schemas/api-contracts.schema.json`, and fixtures whenever endpoint behavior changes.
+
+The full human/agent development workflow lives in `docs/DEVELOPMENT_WORKFLOW.md`.

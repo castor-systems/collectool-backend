@@ -37,3 +37,13 @@ Configure these GitHub values before enabling deploy workflows:
 - Variable: `PROD_SEED_INITIAL_DATA` (`false`)
 
 Enable GitHub secret scanning/push protection from repository settings when the plan supports it. The repo also runs CodeQL and `npm audit` to catch dependency and JavaScript security issues.
+
+You can configure the required GitHub Environments, secrets, and variables with:
+
+```bash
+PROD_CORS_ALLOWED_ORIGINS=https://admin.collectool.example \
+DEV_CORS_ALLOWED_ORIGINS=http://localhost:3000 \
+npm run github:configure-envs
+```
+
+`gh auth status` must be healthy before running the command.
