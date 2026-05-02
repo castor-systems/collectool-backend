@@ -19,8 +19,10 @@ Pass these values with CDK context or environment variables:
 ```bash
 ALLOWED_ADMIN_GROUPS=admin,collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.collectool.example
-SEED_INITIAL_DATA=true
+SEED_INITIAL_DATA=false
 ```
+
+Use `SEED_INITIAL_DATA=true` only for local/manual sandbox testing. Shared dev and prod deployments should keep it disabled and use real managed data.
 
 The stack creates both Cognito pools:
 
@@ -35,7 +37,7 @@ Development:
 npm ci
 npm run deploy:dev -- \
   -c corsAllowedOrigins=$CORS_ALLOWED_ORIGINS \
-  -c seedInitialData=true
+  -c seedInitialData=false
 ```
 
 Production:

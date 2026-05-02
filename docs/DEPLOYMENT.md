@@ -23,8 +23,10 @@ Provide these as CDK context or environment variables:
 ```bash
 ALLOWED_ADMIN_GROUPS=admin,collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.example.com
-SEED_INITIAL_DATA=true
+SEED_INITIAL_DATA=false
 ```
+
+Use `SEED_INITIAL_DATA=true` only for local/manual sandbox tests. Shared `dev` and `prod` deployments should keep it as `false` so those environments use real managed data.
 
 Context has priority over environment variables:
 
@@ -32,7 +34,7 @@ Context has priority over environment variables:
 npm run deploy:dev -- \
   -c allowedAdminGroups=admin,collectool-admins \
   -c corsAllowedOrigins=http://localhost:3000 \
-  -c seedInitialData=true
+  -c seedInitialData=false
 ```
 
 The backend stack creates Cognito. Do not pass pool ids for normal deployments.
@@ -65,7 +67,7 @@ jobs:
         working-directory: collectool-backend
         env:
           CORS_ALLOWED_ORIGINS: ${{ vars.DEV_CORS_ALLOWED_ORIGINS }}
-          SEED_INITIAL_DATA: 'true'
+          SEED_INITIAL_DATA: 'false'
 ```
 
 Production deployment:

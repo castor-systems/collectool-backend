@@ -42,4 +42,4 @@ jobs:
         run: npm run deploy:dev -- --require-approval never
         env:
           CORS_ALLOWED_ORIGINS: ${{ vars.DEV_CORS_ALLOWED_ORIGINS }}
-          SEED_INITIAL_DATA: ${{ vars.DEV_SEED_INITIAL_DATA || 'true' }}
+          SEED_INITIAL_DATA: ${{ vars.DEV_SEED_INITIAL_DATA || 'false' }}

@@ -32,8 +32,8 @@ Configure these GitHub values before enabling deploy workflows:
 - Secret: `AWS_DEPLOY_ROLE_ARN`
 - Variable: `AWS_REGION`
 - Variable: `DEV_CORS_ALLOWED_ORIGINS`
-- Variable: `DEV_SEED_INITIAL_DATA`
+- Variable: `DEV_SEED_INITIAL_DATA` (`false` for shared dev)
 - Variable: `PROD_CORS_ALLOWED_ORIGINS`
-- Variable: `PROD_SEED_INITIAL_DATA`
+- Variable: `PROD_SEED_INITIAL_DATA` (`false`)
 
 Enable GitHub secret scanning/push protection from repository settings when the plan supports it. The repo also runs CodeQL and `npm audit` to catch dependency and JavaScript security issues.
