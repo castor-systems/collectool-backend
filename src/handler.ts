@@ -65,6 +65,18 @@ function parseBody(event) {
   }
 }
 
+function requestPath(event) {
+  const path = event.rawPath || event.path || '/';
+  const stage = process.env.ENVIRONMENT;
+  const stagePrefix = stage ? `/${stage}/` : '';
+
+  if (stagePrefix && path.startsWith(stagePrefix)) {
+    return path.slice(stagePrefix.length - 1) || '/';
+  }
+
+  return path;
+}
+
 function claims(event) {
   const jwtClaims = event.requestContext?.authorizer?.jwt?.claims;
   if (jwtClaims && Object.keys(jwtClaims).length > 0) {
@@ -925,7 +937,7 @@ async function handlePublicRuntime(path, method, body) {
 
 async function route(event) {
   const method = event.requestContext?.http?.method || event.httpMethod;
-  const path = event.rawPath || event.path || '/';
+  const path = requestPath(event);
   const query = event.queryStringParameters || {};
   const body = ['POST', 'PUT', 'PATCH'].includes(method)
     ? parseBody(event)
@@ -978,7 +990,7 @@ exports.handler = async function handler(event) {
   const startedAt = Date.now();
   const requestId = event.requestContext?.requestId || 'unknown';
   const method = event.requestContext?.http?.method || event.httpMethod;
-  const path = event.rawPath || event.path || '/';
+  const path = requestPath(event);
 
   try {
     const response = await route(event);

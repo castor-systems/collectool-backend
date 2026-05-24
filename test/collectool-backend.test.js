@@ -21,6 +21,19 @@ function makeStack() {
   });
 }
 
+function makeStackWithDefaultCors() {
+  const app = new cdk.App({
+    context: {
+      environment: 'dev',
+      seedInitialData: 'false',
+    },
+  });
+
+  return new CollectoolBackendStack(app, 'DefaultCorsTestStack', {
+    env: { account: '123456789012', region: 'us-east-1' },
+  });
+}
+
 function sampleFlow() {
   return {
     id: 'flow-kpop-draft',
@@ -117,6 +130,23 @@ test('CDK stack creates serverless AWS backend resources', () => {
     AuthorizerType: 'JWT',
     IdentitySource: ['$request.header.Authorization'],
   });
+  template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+    RouteKey: 'GET /admin/{proxy+}',
+    AuthorizationType: 'JWT',
+  });
+  template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+    RouteKey: 'POST /admin/{proxy+}',
+    AuthorizationType: 'JWT',
+  });
+  template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+    RouteKey: 'PUT /admin/{proxy+}',
+    AuthorizationType: 'JWT',
+  });
+  expect(
+    Object.values(template.findResources('AWS::ApiGatewayV2::Route')).map(
+      (route) => route.Properties.RouteKey
+    )
+  ).not.toContain('ANY /admin/{proxy+}');
   template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
     StageName: 'dev',
     AccessLogSettings: Match.objectLike({
@@ -175,6 +205,24 @@ test('CDK stack creates serverless AWS backend resources', () => {
       ]),
     }),
   });
+});
+
+test('CDK stack leaves admin CORS preflight unauthenticated', () => {
+  const template = Template.fromStack(makeStackWithDefaultCors());
+
+  template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
+    CorsConfiguration: Match.objectLike({
+      AllowCredentials: true,
+      AllowHeaders: ['authorization', 'content-type'],
+      AllowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+      AllowOrigins: Match.arrayWith(['http://localhost:3000']),
+    }),
+  });
+  expect(
+    Object.values(template.findResources('AWS::ApiGatewayV2::Route')).map(
+      (route) => route.Properties.RouteKey
+    )
+  ).not.toContain('OPTIONS /admin/{proxy+}');
 });
 
 test('runtime computes conditional questions, tags, and completion', () => {

@@ -119,6 +119,33 @@ test('admin session merges JWT groups with Cognito attributes', async () => {
   });
 });
 
+test('admin session accepts execute-api stage-prefixed paths', async () => {
+  process.env.ENVIRONMENT = 'dev';
+  cognitoMock.on(GetUserCommand).resolves({
+    UserAttributes: [
+      { Name: 'email', Value: 'admin@collectool.local' },
+      { Name: 'name', Value: 'Collectool Admin' },
+    ],
+  });
+
+  const response = await handler(
+    makeEvent({
+      path: '/dev/admin/session',
+      claims: adminClaims(),
+      headers: { authorization: 'Bearer access-token' },
+    })
+  );
+
+  expect(response.statusCode).toBe(200);
+  expect(parse(response)).toEqual({
+    user: {
+      email: 'admin@collectool.local',
+      name: 'Collectool Admin',
+      groups: ['collectool-test-collectool-admins'],
+    },
+  });
+});
+
 test('admin session accepts local fake auth token only when enabled', async () => {
   process.env.ENVIRONMENT = 'local';
   process.env.LOCAL_AWS_MOCKS = 'true';

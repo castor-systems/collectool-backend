@@ -542,13 +542,21 @@ class CollectoolBackendStack extends Stack {
     });
     httpApi.addRoutes({
       path: '/admin/{proxy+}',
-      methods: [apigatewayv2.HttpMethod.ANY],
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+      ],
       integration,
       authorizer: jwtAuthorizer,
     });
     httpApi.addRoutes({
       path: '/collection-builder/{proxy+}',
-      methods: [apigatewayv2.HttpMethod.ANY],
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+      ],
       integration,
     });
 
