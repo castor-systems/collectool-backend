@@ -41,30 +41,30 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
-    "@commitlint/config-conventional": "^20.5.3",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@eslint/js": "^10.0.1",
-    "@redocly/cli": "^2.18.2",
+    "@redocly/cli": "^2.31.4",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "ajv": "^8.20.0",
-    "aws-cdk": "2.1119.0",
+    "aws-cdk": "2.1124.1",
     "aws-sdk-client-mock": "^4.1.0",
     "cdk-nag": "^2.38.2",
     "conventional-changelog": "^7.2.0",
     "esbuild": "^0.28.0",
-    "eslint": "^10.3.0",
+    "eslint": "^10.4.0",
     "globals": "^17.6.0",
     "jest": "^30",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1"
+    "typescript-eslint": "^8.59.4"
   },
   "dependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1041.0",
-    "@aws-sdk/client-dynamodb": "^3.1041.0",
-    "@aws-sdk/lib-dynamodb": "^3.1041.0",
-    "aws-cdk-lib": "^2.248.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1053.0",
+    "@aws-sdk/client-dynamodb": "^3.1053.0",
+    "@aws-sdk/lib-dynamodb": "^3.1053.0",
+    "aws-cdk-lib": "^2.257.0",
     "constructs": "^10.5.0"
   }
 }
