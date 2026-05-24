@@ -10,7 +10,6 @@ The backend is designed for AWS-first operation, low idle cost, and compatibilit
 - `AWS::ApiGatewayV2::Authorizer`: JWT authorizer backed by the admin Cognito user pool.
 - `AWS::Cognito::UserPool`: admin user pool for backoffice users.
 - `AWS::Cognito::UserPoolClient`: admin SPA/API auth client with `USER_PASSWORD_AUTH` and SRP enabled.
-- `AWS::Cognito::UserPoolGroup`: environment-named admin groups.
 - `AWS::Cognito::UserPool`: app user pool for main Collectool users.
 - `AWS::Cognito::UserPoolClient`: app SPA/API auth client.
 - `AWS::Lambda::Function`: single Node.js 24 ARM64 handler for admin and public runtime routes.
@@ -55,11 +54,7 @@ All `/admin/*` routes use API Gateway JWT validation against the Cognito resourc
 - issuer: `https://cognito-idp.{region}.amazonaws.com/{ADMIN_USER_POOL_ID}`
 - audience: `{ADMIN_USER_POOL_CLIENT_ID}`
 
-The Lambda then checks Cognito groups from `cognito:groups`. Default accepted groups:
-
-```text
-collectool-{env}-admin,collectool-{env}-collectool-admins
-```
+Membership in the admin Cognito user pool is the access boundary for the admin API. Cognito groups may be returned in session data if they exist, but they are not required for access.
 
 Public runtime routes under `/collection-builder/*` do not require admin auth and only expose active categories with published flows.
 
@@ -106,7 +101,7 @@ Examples:
 - `collectool-dev-api`
 - `collectool-prod-backend`
 - `collectool-dev-admin-site-123456789012-us-east-1`
-- `collectool-prod-collectool-admins`
+- `collectool-prod-admin-users`
 
 The stack applies these standard tags at stack level:
 
@@ -130,8 +125,7 @@ CDK analytics metadata is disabled for this stack so deployments do not create
 an extra untaggable `AWS::CDK::Metadata` resource.
 
 The stack does not create a permanent admin password. Create the first admin
-user after deployment and attach it to `collectool-{env}-collectool-admins` or
-`collectool-{env}-admin`.
+user in the admin Cognito user pool after deployment.
 
 ## Cost Controls
 

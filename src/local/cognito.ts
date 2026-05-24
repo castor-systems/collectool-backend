@@ -31,7 +31,7 @@ function fakeAdminGroups(headers: AnyRecord = {}) {
     return [];
   }
 
-  return String(groupHeader || process.env.ALLOWED_ADMIN_GROUPS || '')
+  return String(groupHeader || '')
     .split(',')
     .map((group) => group.trim())
     .filter(Boolean);

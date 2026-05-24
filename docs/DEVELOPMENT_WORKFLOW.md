@@ -155,7 +155,6 @@ The local runtime uses:
 - `LOCAL_AWS_MOCKS=true`
 - `LOCAL_FAKE_AUTH=true`
 - `LOCAL_FAKE_ACCESS_TOKEN=mock-admin-access-token`
-- `ALLOWED_ADMIN_GROUPS=collectool-local-admin,collectool-local-collectool-admins`
 
 The local HTTP server calls the same Lambda handler used in AWS. It accepts the
 same mock login token used by `collectool-admin` only when `LOCAL_FAKE_AUTH=true`
@@ -165,11 +164,10 @@ those claims with headers when needed:
 ```bash
 curl -H 'Authorization: Bearer mock-admin-access-token' http://localhost:3001/admin/session
 curl -H 'Authorization: Bearer mock-admin-access-token' -H 'x-local-email: human@collectool.test' http://localhost:3001/admin/session
-curl -H 'x-local-groups: none' http://localhost:3001/admin/session
 ```
 
 Never enable `LOCAL_FAKE_AUTH` in shared `dev` or `prod`; CDK deployments rely on
-the real API Gateway JWT authorizer and Cognito groups.
+the real API Gateway JWT authorizer and admin Cognito pool.
 
 Reset local data:
 
@@ -270,7 +268,7 @@ npm run health -- <ApiUrl>
 
 ## First Admin User
 
-After a fresh stack deploy, create the first admin user manually and attach it to `collectool-{env}-collectool-admins` or `collectool-{env}-admin`. See `docs/DEPLOYMENT.md`.
+After a fresh stack deploy, create the first admin user manually in the admin Cognito user pool. See `docs/DEPLOYMENT.md`.
 
 ## PR Checklist
 

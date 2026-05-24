@@ -84,10 +84,9 @@ Expected response:
 Required behavior:
 
 - Validate the Cognito JWT signature, issuer, expiration, token use, and audience/client as appropriate.
-- Confirm that the user is an admin.
-- Recommended admin check: require Cognito group `admin` or `collectool-admins`. The current UI only expects `groups: string[]`.
+- Confirm that the token belongs to the admin Cognito user pool.
+- Do not require Cognito groups for initial admin access. The current UI can receive `groups: string[]` for future permissions, but membership in the admin pool is the access boundary.
 - Return `401` for missing/invalid/expired token.
-- Return `403` for valid token without admin privileges.
 
 ### 2.3 Auth For All Admin Endpoints
 
@@ -1155,8 +1154,7 @@ Backend is minimally compatible with current admin when:
 
 These decisions should be made before or during backend reimplementation:
 
-- **Canonical admin group**: current docs mention `admin`; mock auth uses `collectool-admins`. Recommended recovery path is to support both initially through configuration, then standardize one.
-- **User pool separation**: confirm whether admin users and app users live in the same Cognito user pool. The admin UI needs to list app users, while admin login may use a separate admin pool.
+- **User pool separation**: admin users and app users live in separate Cognito user pools. The admin UI lists app users while admin login uses the admin pool.
 - **Timestamp standard**: Collection Builder should use Unix seconds for `created_at`, `updated_at`, and `published_at`. Existing fixtures contain millisecond-like values and should not be copied into backend behavior.
 - **Draft after publish**: decide whether publishing removes the draft, keeps it as the next editable base, or creates a new draft from published. Current frontend can tolerate either if `GET flow` returns coherent `draft`, `published`, and `history`.
 - **"All/Todos" sentinel**: choose a stable answer value such as `__ALL__` before the main app depends on it.

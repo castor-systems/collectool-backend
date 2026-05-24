@@ -71,7 +71,6 @@ When adding a new CDK/deploy-time variable, update `.env.example`, `README.md`, 
 Current non-secret inputs:
 
 - `DEPLOY_ENV`
-- `ALLOWED_ADMIN_GROUPS`
 - `CORS_ALLOWED_ORIGINS`
 - `SEED_INITIAL_DATA`
 - `ADMIN_GITHUB_REPOSITORY`

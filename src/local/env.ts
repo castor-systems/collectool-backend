@@ -12,8 +12,6 @@ function applyLocalDefaults() {
   process.env.ADMIN_USER_POOL_ID ||= 'collectool-local-admin-users';
   process.env.ADMIN_USER_POOL_CLIENT_ID ||= 'collectool-local-admin-web';
   process.env.APP_USER_POOL_ID ||= 'collectool-local-app-users';
-  process.env.ALLOWED_ADMIN_GROUPS ||=
-    'collectool-local-admin,collectool-local-collectool-admins';
   process.env.METRICS_USER_SCAN_LIMIT ||= '250';
   process.env.SEED_INITIAL_DATA ||= 'true';
   process.env.LOCAL_AWS_MOCKS ||= 'true';

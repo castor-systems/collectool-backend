@@ -24,7 +24,6 @@ repository, and per-resource `Name`/`Component` where AWS supports tags.
 Provide these as CDK context or environment variables:
 
 ```bash
-ALLOWED_ADMIN_GROUPS=collectool-{env}-admin,collectool-{env}-collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.example.com
 ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
@@ -36,7 +35,6 @@ Context has priority over environment variables:
 
 ```bash
 npm run deploy:dev -- \
-  -c allowedAdminGroups=collectool-dev-admin,collectool-dev-collectool-admins \
   -c corsAllowedOrigins=http://localhost:3000 \
   -c seedInitialData=false
 ```
@@ -127,7 +125,7 @@ NEXT_PUBLIC_ADMIN_AUTH_MODE=real
 NEXT_PUBLIC_APP_ENV=development
 ```
 
-The admin login still happens directly against the admin Cognito pool created by this stack. The backend validates that access token through API Gateway and checks admin groups in Lambda.
+The admin login still happens directly against the admin Cognito pool created by this stack. API Gateway validates that access token against the admin pool and client.
 
 For GitHub Actions deploys, configure the `collectool-admin` repository environments:
 
@@ -166,15 +164,6 @@ aws cognito-idp admin-create-user \
   --user-pool-id <AdminUserPoolId> \
   --username admin@example.com \
   --user-attributes Name=email,Value=admin@example.com Name=email_verified,Value=true Name=name,Value="Admin User"
-```
-
-Add that user to an admin group:
-
-```bash
-aws cognito-idp admin-add-user-to-group \
-  --user-pool-id <AdminUserPoolId> \
-  --username admin@example.com \
-  --group-name collectool-{env}-collectool-admins
 ```
 
 Set a permanent password for local/dev testing if you do not want the temporary-password flow:

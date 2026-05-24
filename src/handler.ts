@@ -90,18 +90,10 @@ function claimGroups(jwtClaims) {
 function assertAdmin(event) {
   const jwtClaims = claims(event);
   const groups = claimGroups(jwtClaims);
-  const environment = process.env.ENVIRONMENT || 'dev';
-  const allowed = (
-    process.env.ALLOWED_ADMIN_GROUPS ||
-    `collectool-${environment}-admin,collectool-${environment}-collectool-admins`
-  )
-    .split(',')
-    .map((group) => group.trim())
-    .filter(Boolean);
 
-  if (allowed.length > 0 && !groups.some((group) => allowed.includes(group))) {
-    throw Object.assign(new Error('Admin privileges required'), {
-      statusCode: 403,
+  if (Object.keys(jwtClaims).length === 0) {
+    throw Object.assign(new Error('Admin authentication required'), {
+      statusCode: 401,
     });
   }
 

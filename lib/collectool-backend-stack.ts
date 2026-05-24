@@ -33,12 +33,6 @@ class CollectoolBackendStack extends Stack {
     const isProd = environment === 'prod';
     const projectName = 'collectool';
     const resourcePrefix = `${projectName}-${environment}`;
-    const adminGroupName = `${resourcePrefix}-admin`;
-    const collectoolAdminsGroupName = `${resourcePrefix}-collectool-admins`;
-    const allowedAdminGroups =
-      this.node.tryGetContext('allowedAdminGroups') ||
-      process.env.ALLOWED_ADMIN_GROUPS ||
-      `${adminGroupName},${collectoolAdminsGroupName}`;
     const seedInitialData = String(
       this.node.tryGetContext('seedInitialData') ||
         process.env.SEED_INITIAL_DATA ||
@@ -120,20 +114,6 @@ class CollectoolBackendStack extends Stack {
       idTokenValidity: Duration.hours(1),
       refreshTokenValidity: Duration.days(30),
     });
-
-    const adminGroup = adminUserPool.addGroup('AdminGroup', {
-      groupName: adminGroupName,
-      description: `Collectool ${environment} administrators`,
-      precedence: 1,
-    });
-    const collectoolAdminsGroup = adminUserPool.addGroup(
-      'CollectoolAdminsGroup',
-      {
-        groupName: collectoolAdminsGroupName,
-        description: `Collectool ${environment} admin backoffice users`,
-        precedence: 2,
-      }
-    );
 
     const appUserPool = new cognito.UserPool(this, 'AppUserPool', {
       userPoolName: `${resourcePrefix}-app-users`,
@@ -408,7 +388,6 @@ class CollectoolBackendStack extends Stack {
         ADMIN_USER_POOL_ID: adminUserPool.userPoolId,
         ADMIN_USER_POOL_CLIENT_ID: adminUserPoolClient.userPoolClientId,
         APP_USER_POOL_ID: appUserPool.userPoolId,
-        ALLOWED_ADMIN_GROUPS: allowedAdminGroups,
         METRICS_USER_SCAN_LIMIT: isProd ? '1000' : '250',
         SEED_INITIAL_DATA: seedInitialData,
       },
@@ -713,10 +692,6 @@ class CollectoolBackendStack extends Stack {
     new CfnOutput(this, 'AppUserPoolId', { value: appUserPool.userPoolId });
     new CfnOutput(this, 'AppUserPoolClientId', {
       value: appUserPoolClient.userPoolClientId,
-    });
-    new CfnOutput(this, 'AdminGroupName', { value: adminGroup.groupName });
-    new CfnOutput(this, 'CollectoolAdminsGroupName', {
-      value: collectoolAdminsGroup.groupName,
     });
     new CfnOutput(this, 'Environment', { value: environment });
   }

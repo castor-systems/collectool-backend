@@ -23,8 +23,6 @@ function configureEnvironment() {
   process.env.ENTITIES_TABLE = 'collectool-test-entities';
   process.env.FLOWS_TABLE = 'collectool-test-flows';
   process.env.APP_USER_POOL_ID = 'app-user-pool';
-  process.env.ALLOWED_ADMIN_GROUPS =
-    'collectool-test-admin,collectool-test-collectool-admins';
   process.env.SEED_INITIAL_DATA = 'false';
   delete process.env.LOCAL_AWS_MOCKS;
   delete process.env.LOCAL_FAKE_AUTH;
@@ -128,9 +126,6 @@ test('admin session accepts local fake auth token only when enabled', async () =
   process.env.LOCAL_FAKE_ACCESS_TOKEN = 'mock-admin-access-token';
   process.env.LOCAL_FAKE_ADMIN_EMAIL = 'admin@collectool.local';
   process.env.LOCAL_FAKE_ADMIN_NAME = 'Mock Admin';
-  process.env.ALLOWED_ADMIN_GROUPS =
-    'collectool-local-admin,collectool-local-collectool-admins';
-
   const response = await handler(
     makeEvent({
       path: '/admin/session',
@@ -143,21 +138,46 @@ test('admin session accepts local fake auth token only when enabled', async () =
     user: {
       email: 'admin@collectool.local',
       name: 'Mock Admin',
-      groups: ['collectool-local-admin', 'collectool-local-collectool-admins'],
+      groups: [],
     },
   });
 });
 
-test('admin routes reject users outside allowed groups', async () => {
+test('admin routes accept any user from the admin pool regardless of groups', async () => {
+  cognitoMock.on(GetUserCommand).resolves({
+    UserAttributes: [
+      { Name: 'email', Value: 'support@collectool.local' },
+      { Name: 'name', Value: 'Support User' },
+    ],
+  });
+
   const response = await handler(
     makeEvent({
       path: '/admin/session',
       claims: adminClaims(['support']),
+      headers: { authorization: 'Bearer access-token' },
     })
   );
 
-  expect(response.statusCode).toBe(403);
-  expect(parse(response)).toEqual({ message: 'Admin privileges required' });
+  expect(response.statusCode).toBe(200);
+  expect(parse(response)).toEqual({
+    user: {
+      email: 'support@collectool.local',
+      name: 'Support User',
+      groups: ['support'],
+    },
+  });
+});
+
+test('admin routes require authenticated admin pool claims', async () => {
+  const response = await handler(
+    makeEvent({
+      path: '/admin/session',
+    })
+  );
+
+  expect(response.statusCode).toBe(401);
+  expect(parse(response)).toEqual({ message: 'Admin authentication required' });
 });
 
 test('public runtime never exposes draft-only flows', async () => {

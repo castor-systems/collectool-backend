@@ -587,7 +587,6 @@ implementar, alinear con el proyecto collectool admin
 
 - Crear `.env.example`:
   - `DEPLOY_ENV=dev`
-  - `ALLOWED_ADMIN_GROUPS=collectool-{env}-admin,collectool-{env}-collectool-admins`
   - `CORS_ALLOWED_ORIGINS=http://localhost:3000`
   - `SEED_INITIAL_DATA=true`
 - Documentar que CDK context tiene prioridad.

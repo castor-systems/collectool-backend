@@ -590,7 +590,7 @@ components:
           schema:
             $ref: '../schemas/api-contracts.schema.json#/$defs/error'
     Forbidden:
-      description: The caller is not in an allowed admin Cognito group.
+      description: The caller is authenticated but not allowed to perform this action.
       content:
         application/json:
           schema:

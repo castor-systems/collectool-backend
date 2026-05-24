@@ -87,15 +87,14 @@ test('CDK stack creates serverless AWS backend resources', () => {
 
   template.resourceCountIs('AWS::Cognito::UserPool', 2);
   template.resourceCountIs('AWS::Cognito::UserPoolClient', 2);
-  template.resourceCountIs('AWS::Cognito::UserPoolGroup', 2);
+  template.resourceCountIs('AWS::Cognito::UserPoolGroup', 0);
   template.resourceCountIs('AWS::DynamoDB::Table', 3);
   template.resourceCountIs('AWS::S3::Bucket', 1);
   template.resourceCountIs('AWS::CloudFront::Distribution', 1);
-  template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
-    GroupName: 'collectool-dev-admin',
-  });
-  template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
-    GroupName: 'collectool-dev-collectool-admins',
+  template.hasResourceProperties('AWS::Cognito::UserPool', {
+    UserPoolName: 'collectool-dev-admin-users',
+    AliasAttributes: ['email'],
+    AutoVerifiedAttributes: ['email'],
   });
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
     ExplicitAuthFlows: Match.arrayWith([
@@ -109,8 +108,6 @@ test('CDK stack creates serverless AWS backend resources', () => {
     Environment: {
       Variables: Match.objectLike({
         ENVIRONMENT: 'dev',
-        ALLOWED_ADMIN_GROUPS:
-          'collectool-dev-admin,collectool-dev-collectool-admins',
         SEED_INITIAL_DATA: 'false',
       }),
     },

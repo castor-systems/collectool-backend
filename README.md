@@ -21,7 +21,6 @@ More detail: `docs/ARCHITECTURE.md`.
 Pass these values with CDK context or environment variables:
 
 ```bash
-ALLOWED_ADMIN_GROUPS=collectool-{env}-admin,collectool-{env}-collectool-admins
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://admin.collectool.example
 ADMIN_GITHUB_REPOSITORY=castor-systems/collectool-admin
 SEED_INITIAL_DATA=false
@@ -68,8 +67,7 @@ Use the stack outputs to configure `collectool-admin`:
 - `AdminSiteUrl` -> deployed admin URL
 - `AdminDeployRoleArn` -> `AWS_DEPLOY_ROLE_ARN` secret in the matching `collectool-admin` GitHub Environment
 
-Create the first admin user after deploy and add it to
-`collectool-{env}-collectool-admins` or `collectool-{env}-admin`. See
+Create the first admin user in the admin Cognito user pool after deploy. See
 `docs/DEPLOYMENT.md`.
 
 ## Branch/Environment Model
@@ -131,11 +129,7 @@ curl -H 'Authorization: Bearer mock-admin-access-token' http://localhost:3001/ad
 ```
 
 The token value matches `collectool-admin` mock login. Local admin claims can be
-overridden with `x-local-*` headers. To test forbidden admin access:
-
-```bash
-curl -H 'x-local-groups: none' http://localhost:3001/admin/session
-```
+overridden with `x-local-*` headers.
 
 Point `collectool-admin` local development to:
 

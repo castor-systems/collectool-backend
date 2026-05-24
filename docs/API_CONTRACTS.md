@@ -18,7 +18,7 @@ All `/admin/*` endpoints require:
 Authorization: Bearer <cognito_access_token>
 ```
 
-The token must come from the admin Cognito user pool created by the backend stack and must belong to one of the configured admin groups.
+The token must come from the admin Cognito user pool created by the backend stack.
 
 The executable OpenAPI contract lives in [`docs/openapi.yaml`](openapi.yaml) and is validated by:
 
@@ -41,7 +41,7 @@ Returns:
   "user": {
     "email": "admin@example.com",
     "name": "Admin User",
-    "groups": ["collectool-dev-collectool-admins"]
+    "groups": []
   }
 }
 ```
