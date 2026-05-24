@@ -41,14 +41,14 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
-    "@commitlint/config-conventional": "^20.5.3",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@eslint/js": "^10.0.1",
     "@redocly/cli": "^2.18.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.6.0",
     "ajv": "^8.20.0",
-    "aws-cdk": "2.1119.0",
+    "aws-cdk": "2.1124.1",
     "aws-sdk-client-mock": "^4.1.0",
     "cdk-nag": "^2.38.2",
     "conventional-changelog": "^7.2.0",
