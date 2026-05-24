@@ -29,6 +29,18 @@ npm run security:iac
 
 The full final workflow for humans and agents is documented in `docs/DEVELOPMENT_WORKFLOW.md`.
 
+For local end-to-end backend checks without AWS deploys, use:
+
+```bash
+npm run local:up
+```
+
+This runs DynamoDB Local, creates local tables, loads `src/seed.ts`, and serves
+the Lambda handler through `http://localhost:3001`.
+
+Local admin auth accepts `Authorization: Bearer mock-admin-access-token` only
+with `LOCAL_FAKE_AUTH=true`. Never carry that flag into shared `dev` or `prod`.
+
 ## Package Manager And Runtime
 
 Use npm only.

@@ -17,6 +17,14 @@ const {
   ListUsersCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { error, json } = require('./http/responses');
+const {
+  getLocalUser,
+  fakeAdminClaimsFromEvent,
+  isLocalAwsMocks,
+  listLocalUsers,
+  localSessionAttributes,
+  setLocalUserEnabled,
+} = require('./local/cognito');
 const { ddb } = require('./repositories/dynamo');
 const { buildRuntimeResponse, validateFlow } = require('./runtime');
 const { buildSeedData, nowSeconds } = require('./seed');
@@ -58,7 +66,11 @@ function parseBody(event) {
 }
 
 function claims(event) {
-  return event.requestContext?.authorizer?.jwt?.claims || {};
+  const jwtClaims = event.requestContext?.authorizer?.jwt?.claims;
+  if (jwtClaims && Object.keys(jwtClaims).length > 0) {
+    return jwtClaims;
+  }
+  return fakeAdminClaimsFromEvent(event) || {};
 }
 
 function claimGroups(jwtClaims) {
@@ -303,6 +315,10 @@ function matchesUserFilters(user, query) {
 
 async function listAppUsers(query) {
   const limit = Math.min(Number(query.limit || DEFAULT_LIMIT), 60);
+  if (isLocalAwsMocks()) {
+    return { users: listLocalUsers(query, limit), nextToken: undefined };
+  }
+
   const result = await cognito.send(
     new ListUsersCommand({
       UserPoolId: table('APP_USER_POOL_ID'),
@@ -318,6 +334,10 @@ async function listAppUsers(query) {
 
 async function loadUsersForMetrics() {
   const maxUsers = Number(process.env.METRICS_USER_SCAN_LIMIT || 500);
+  if (isLocalAwsMocks()) {
+    return listLocalUsers({}, maxUsers);
+  }
+
   const users: AnyRecord[] = [];
   let token: string | undefined;
 
@@ -447,6 +467,10 @@ function buildMetrics(users) {
 }
 
 async function getUser(username) {
+  if (isLocalAwsMocks()) {
+    return getLocalUser(username);
+  }
+
   const result = await cognito.send(
     new AdminGetUserCommand({
       UserPoolId: table('APP_USER_POOL_ID'),
@@ -469,7 +493,9 @@ async function handleSession(event) {
   const token = bearerToken(event);
   let userAttributes: AnyRecord = {};
 
-  if (token) {
+  if (isLocalAwsMocks()) {
+    userAttributes = localSessionAttributes(jwtClaims);
+  } else if (token) {
     try {
       const user = await cognito.send(
         new GetUserCommand({ AccessToken: token })
@@ -511,6 +537,12 @@ async function handleUsers(path, method, query) {
   if (method === 'POST' && match) {
     const username = decodeURIComponent(match[1]);
     const action = match[2];
+
+    if (isLocalAwsMocks()) {
+      const enabled =
+        action === 'enable' || action === 'unban' || action === 'unlock';
+      return json(200, { user: setLocalUserEnabled(username, enabled) });
+    }
 
     if (action === 'disable' || action === 'ban') {
       await cognito.send(

@@ -136,6 +136,47 @@ Do not make tests call real AWS services.
 
 `cdk-nag` is part of `npm run check`; do not bypass it for PR-ready work. Suppressions must stay targeted and include a concrete reason in the CDK code.
 
+## Local Runtime
+
+For pre-merge development against a real local persistence layer:
+
+```bash
+npm run local:up
+```
+
+This starts DynamoDB Local, creates the local tables, loads the reusable seed
+from `src/seed.ts`, and runs the backend API at `http://localhost:3001`.
+
+The local runtime uses:
+
+- `DYNAMODB_ENDPOINT=http://localhost:8000`
+- `ENVIRONMENT=local`
+- `SEED_INITIAL_DATA=true`
+- `LOCAL_AWS_MOCKS=true`
+- `LOCAL_FAKE_AUTH=true`
+- `LOCAL_FAKE_ACCESS_TOKEN=mock-admin-access-token`
+- `ALLOWED_ADMIN_GROUPS=collectool-local-admin,collectool-local-collectool-admins`
+
+The local HTTP server calls the same Lambda handler used in AWS. It accepts the
+same mock login token used by `collectool-admin` only when `LOCAL_FAKE_AUTH=true`
+and turns it into local API Gateway JWT claims for `/admin/*` routes. Override
+those claims with headers when needed:
+
+```bash
+curl -H 'Authorization: Bearer mock-admin-access-token' http://localhost:3001/admin/session
+curl -H 'Authorization: Bearer mock-admin-access-token' -H 'x-local-email: human@collectool.test' http://localhost:3001/admin/session
+curl -H 'x-local-groups: none' http://localhost:3001/admin/session
+```
+
+Never enable `LOCAL_FAKE_AUTH` in shared `dev` or `prod`; CDK deployments rely on
+the real API Gateway JWT authorizer and Cognito groups.
+
+Reset local data:
+
+```bash
+npm run local:reset
+```
+
 ## Infrastructure Change Flow
 
 For any AWS resource, IAM, Cognito, API Gateway, Lambda, DynamoDB, logging, or alarm change:

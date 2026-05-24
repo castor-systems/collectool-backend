@@ -98,6 +98,55 @@ See `docs/DEPLOYMENT.md` for CI examples.
 - `npm run outputs:dev`: print CloudFormation outputs for the dev stack.
 - `npm run outputs:prod`: print CloudFormation outputs for the prod stack.
 - `npm run health -- <api-url>`: call the deployed `/health` endpoint.
+- `npm run local:infra`: start DynamoDB Local with Docker Compose.
+- `npm run local:tables`: create local DynamoDB tables.
+- `npm run local:seed`: load reusable local seed data.
+- `npm run local:api`: run the local HTTP API on `http://localhost:3001`.
+- `npm run local:up`: start DynamoDB Local, ensure tables, seed data, and run the API.
+- `npm run local:reset`: stop local infra and remove the DynamoDB Local volume.
+
+## Local Development
+
+The lightweight local environment simulates the AWS runtime without deploying:
+
+- DynamoDB Local stores Collection Builder data.
+- The same Lambda handler is invoked through a local Node HTTP server.
+- The admin mock login token `mock-admin-access-token` is accepted only when
+  `LOCAL_FAKE_AUTH=true`.
+- Cognito user list/metrics/moderation endpoints use local mock users.
+- `src/seed.ts` is reused for local seed data.
+
+Start everything:
+
+```bash
+npm run local:up
+```
+
+Then test:
+
+```bash
+curl http://localhost:3001/health
+curl -H 'Authorization: Bearer mock-admin-access-token' http://localhost:3001/admin/session
+curl -H 'Authorization: Bearer mock-admin-access-token' http://localhost:3001/admin/collection-builder/bootstrap
+```
+
+The token value matches `collectool-admin` mock login. Local admin claims can be
+overridden with `x-local-*` headers. To test forbidden admin access:
+
+```bash
+curl -H 'x-local-groups: none' http://localhost:3001/admin/session
+```
+
+Point `collectool-admin` local development to:
+
+```bash
+NEXT_PUBLIC_COLLECTOOL_API_URL=http://localhost:3001
+NEXT_PUBLIC_ADMIN_AUTH_MODE=mock
+NEXT_PUBLIC_APP_ENV=local
+```
+
+Do not set `LOCAL_FAKE_AUTH=true` in shared `dev` or `prod`; those environments
+use the real Cognito/API Gateway authorizer created by CDK.
 
 Workflow and repository protection details live in `docs/BRANCH_PROTECTION.md`.
 

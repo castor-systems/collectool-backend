@@ -26,6 +26,11 @@ function configureEnvironment() {
   process.env.ALLOWED_ADMIN_GROUPS =
     'collectool-test-admin,collectool-test-collectool-admins';
   process.env.SEED_INITIAL_DATA = 'false';
+  delete process.env.LOCAL_AWS_MOCKS;
+  delete process.env.LOCAL_FAKE_AUTH;
+  delete process.env.LOCAL_FAKE_ACCESS_TOKEN;
+  delete process.env.LOCAL_FAKE_ADMIN_EMAIL;
+  delete process.env.LOCAL_FAKE_ADMIN_NAME;
 }
 
 function parse(response) {
@@ -112,6 +117,33 @@ test('admin session merges JWT groups with Cognito attributes', async () => {
       email: 'admin@collectool.local',
       name: 'Collectool Admin',
       groups: ['collectool-test-collectool-admins'],
+    },
+  });
+});
+
+test('admin session accepts local fake auth token only when enabled', async () => {
+  process.env.ENVIRONMENT = 'local';
+  process.env.LOCAL_AWS_MOCKS = 'true';
+  process.env.LOCAL_FAKE_AUTH = 'true';
+  process.env.LOCAL_FAKE_ACCESS_TOKEN = 'mock-admin-access-token';
+  process.env.LOCAL_FAKE_ADMIN_EMAIL = 'admin@collectool.local';
+  process.env.LOCAL_FAKE_ADMIN_NAME = 'Mock Admin';
+  process.env.ALLOWED_ADMIN_GROUPS =
+    'collectool-local-admin,collectool-local-collectool-admins';
+
+  const response = await handler(
+    makeEvent({
+      path: '/admin/session',
+      headers: { authorization: 'Bearer mock-admin-access-token' },
+    })
+  );
+
+  expect(response.statusCode).toBe(200);
+  expect(parse(response)).toEqual({
+    user: {
+      email: 'admin@collectool.local',
+      name: 'Mock Admin',
+      groups: ['collectool-local-admin', 'collectool-local-collectool-admins'],
     },
   });
 });

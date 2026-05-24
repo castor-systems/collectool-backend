@@ -1025,4 +1025,4 @@ TODO el flujo final de desarrollo despues de todas estas implementaciones, asi c
 - `cdk-nag` es obligatorio: `npm run security:iac` forma parte de `npm run check` y de CI/deploy.
 - El backend es la fuente canonica de contratos: `docs/openapi.yaml`, `schemas/api-contracts.schema.json` y `test/fixtures/*.json`.
 - `collectool-admin` solo debe sincronizar expectativas frontend desde los contratos backend.
-- El flujo final para humanos/agentes vive en `docs/DEVELOPMENT_WORKFLOW.md` y las reglas operativas cortas viven en `AGENTS.md`.
+- El flujo final para humanos/agentes vive en `docs/DEVELOPMENT_WORKFLOW.md` y las reglas operativas cortas viven en `AGENTS.md`
