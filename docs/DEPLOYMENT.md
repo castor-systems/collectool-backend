@@ -155,9 +155,35 @@ AWS_REGION=us-east-1
 
 The admin workflow reads `ApiUrl`, `AdminUserPoolClientId`, `AdminSiteBucketName`, and `AdminSiteDistributionId` from this backend stack at deploy time, then runs `next build`, syncs `out/` to S3, and invalidates CloudFront.
 
+## Mobile App Wiring
+
+For `collectool-app`, copy the app Cognito outputs into the Expo public
+environment:
+
+```bash
+EXPO_PUBLIC_COGNITO_REGION=<AppCognitoRegion>
+EXPO_PUBLIC_COGNITO_CLIENT_ID=<AppUserPoolClientId>
+EXPO_PUBLIC_PROFILE_API_URL=<profile-api-url>
+```
+
+These values must come from the app user pool, not the admin pool. The mobile
+app talks directly to Cognito for signup, email verification, login,
+confirmation-code resend, forgot password, and password reset.
+
+The app pool created by this stack allows public signup, requires email,
+auto-verifies email through Cognito, supports account recovery by email, and
+does not require roles or groups to enter the app. The password policy is:
+
+- 9 or more characters.
+- At least one uppercase letter.
+- At least one lowercase letter.
+- At least one number.
+- At least one symbol.
+
 ## First Admin User
 
-The stack creates pools, clients, and groups, but it does not store a human password in CloudFormation. Create the first admin user after deploy:
+The stack creates pools and clients, but it does not store a human password in
+CloudFormation. Create the first admin user after deploy:
 
 ```bash
 aws cognito-idp admin-create-user \

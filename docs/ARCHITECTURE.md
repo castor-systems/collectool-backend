@@ -11,7 +11,7 @@ The backend is designed for AWS-first operation, low idle cost, and compatibilit
 - `AWS::Cognito::UserPool`: admin user pool for backoffice users.
 - `AWS::Cognito::UserPoolClient`: admin SPA/API auth client with `USER_PASSWORD_AUTH` and SRP enabled.
 - `AWS::Cognito::UserPool`: app user pool for main Collectool users.
-- `AWS::Cognito::UserPoolClient`: app SPA/API auth client.
+- `AWS::Cognito::UserPoolClient`: app mobile auth client without secret.
 - `AWS::Lambda::Function`: single Node.js 24 ARM64 handler for admin and public runtime routes.
 - `AWS::DynamoDB::Table`: three on-demand tables:
   - `collectool-{env}-collection-categories`
@@ -49,7 +49,7 @@ Known flow keys:
 
 ## Authentication
 
-All `/admin/*` routes use API Gateway JWT validation against the Cognito resources created in this stack:
+All `/admin/*` routes use API Gateway JWT validation against the admin Cognito resources created in this stack:
 
 - issuer: `https://cognito-idp.{region}.amazonaws.com/{ADMIN_USER_POOL_ID}`
 - audience: `{ADMIN_USER_POOL_CLIENT_ID}`
@@ -57,6 +57,16 @@ All `/admin/*` routes use API Gateway JWT validation against the Cognito resourc
 Membership in the admin Cognito user pool is the access boundary for the admin API. Cognito groups may be returned in session data if they exist, but they are not required for access.
 
 Public runtime routes under `/collection-builder/*` do not require admin auth and only expose active categories with published flows.
+
+The mobile app uses a separate Cognito user pool created by the same stack.
+That app pool is the source of truth for public Collectool users:
+
+- self signup is enabled from `collectool-app`.
+- users can sign in with email or username.
+- email is required and auto-verified through Cognito's email confirmation flow.
+- password recovery uses Cognito email recovery.
+- no Cognito groups or roles are required for app login at this stage.
+- password policy is 9+ characters with uppercase, lowercase, number, and symbol.
 
 ## Cognito Ownership
 
@@ -66,6 +76,11 @@ Public runtime routes under `/collection-builder/*` do not require admin auth an
 - `AdminUserPoolClientId`
 - `AppUserPoolId`
 - `AppUserPoolClientId`
+- `AppCognitoRegion`
+
+`collectool-app` must use `AppCognitoRegion` as
+`EXPO_PUBLIC_COGNITO_REGION` and `AppUserPoolClientId` as
+`EXPO_PUBLIC_COGNITO_CLIENT_ID`. It should not use admin Cognito outputs.
 
 ## Admin Frontend Hosting
 

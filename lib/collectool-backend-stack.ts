@@ -136,7 +136,7 @@ class CollectoolBackendStack extends Stack {
         },
       },
       passwordPolicy: {
-        minLength: 10,
+        minLength: 9,
         requireDigits: true,
         requireLowercase: true,
         requireSymbols: true,
@@ -148,7 +148,7 @@ class CollectoolBackendStack extends Stack {
     applyResourceTags(appUserPool, `${resourcePrefix}-app-users`, 'auth');
 
     const appUserPoolClient = appUserPool.addClient('AppUserPoolClient', {
-      userPoolClientName: `${resourcePrefix}-app-web`,
+      userPoolClientName: `${resourcePrefix}-app-mobile`,
       disableOAuth: true,
       generateSecret: false,
       authFlows: {
@@ -697,9 +697,18 @@ class CollectoolBackendStack extends Stack {
     new CfnOutput(this, 'AdminUserPoolClientId', {
       value: adminUserPoolClient.userPoolClientId,
     });
-    new CfnOutput(this, 'AppUserPoolId', { value: appUserPool.userPoolId });
+    new CfnOutput(this, 'AppUserPoolId', {
+      value: appUserPool.userPoolId,
+      description: 'Cognito user pool id for Collectool mobile app users.',
+    });
     new CfnOutput(this, 'AppUserPoolClientId', {
       value: appUserPoolClient.userPoolClientId,
+      description:
+        'Use as EXPO_PUBLIC_COGNITO_CLIENT_ID in collectool-app.',
+    });
+    new CfnOutput(this, 'AppCognitoRegion', {
+      value: Stack.of(this).region,
+      description: 'Use as EXPO_PUBLIC_COGNITO_REGION in collectool-app.',
     });
     new CfnOutput(this, 'Environment', { value: environment });
   }

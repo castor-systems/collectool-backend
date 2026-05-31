@@ -33,6 +33,11 @@ The stack creates both Cognito pools:
 - `collectool-{env}-admin-users`
 - `collectool-{env}-app-users`
 
+The app user pool is the public mobile identity boundary. It allows signup from
+`collectool-app`, login with email or username, email verification, and password
+recovery by email. App login does not require Cognito groups or roles yet.
+Passwords must have 9+ characters with uppercase, lowercase, number, and symbol.
+
 All AWS resources created by this stack must keep representative
 `collectool-{env}-...` names when AWS supports physical names. The stack also
 applies standard tags for cost and operations: `Project`, `Application`,
@@ -66,6 +71,12 @@ Use the stack outputs to configure `collectool-admin`:
 - `AdminUserPoolClientId` -> `NEXT_PUBLIC_ADMIN_COGNITO_CLIENT_ID`
 - `AdminSiteUrl` -> deployed admin URL
 - `AdminDeployRoleArn` -> `AWS_DEPLOY_ROLE_ARN` secret in the matching `collectool-admin` GitHub Environment
+
+Use the stack outputs to configure `collectool-app`:
+
+- `AppCognitoRegion` -> `EXPO_PUBLIC_COGNITO_REGION`
+- `AppUserPoolClientId` -> `EXPO_PUBLIC_COGNITO_CLIENT_ID`
+- `AppUserPoolId` -> reference only; the Expo app does not need it for direct auth calls
 
 Create the first admin user in the admin Cognito user pool after deploy. See
 `docs/DEPLOYMENT.md`.
